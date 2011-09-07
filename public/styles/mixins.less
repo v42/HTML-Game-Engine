@@ -1,0 +1,104 @@
+// ## Mix-ins
+.inline-block() {
+	display:-moz-inline-stack;
+	display:inline-block;
+	position:relative;
+	*display:inline;
+	zoom:1;
+}
+.min-height(@height) {
+	min-height: @height;
+	height: auto !important;
+	height: @height;
+}
+.min-width(@width) {
+	min-width: @width;
+	width: auto !important;
+	width: @width;
+}
+.border-radius(@radius: 3px) {
+    -webkit-border-radius: @radius;
+    -moz-border-radius: @radius;
+    border-radius: @radius;
+}
+ 
+.opacity(@alpha: 1) {
+	@ms: @alpha * 100;
+	-moz-opacity: @alpha;
+	opacity: @alpha;
+	filter: e(%('alpha(opacity=%d)', @alpha * 100));
+	-ms-filter: %('progid:DXImageTransform.Microsoft.Alpha(Opacity=%d)', @alpha * 100);
+}
+ 
+.text-shadow(@shadow) {
+	-moz-text-shadow: @shadow;
+	text-shadow: @shadow;
+}
+
+.box-shadow(@shadow) {
+	-moz-box-shadow: @shadow;
+	-webkit-box-shadow: @shadow;
+	box-shadow: @shadow;
+	//.pie();
+}
+.transition(@trans) {
+	-webkit-transition: @trans;
+	-moz-transition: @trans;
+	-o-transition: @trans;
+	transition: @trans;
+}
+.transform(@t){
+	-webkit-transform: @t;
+	   -moz-transform: @t;
+   	 -ms-transform: @t;
+	     -o-transform: @t;
+	        transform: @t;
+}
+.linear-gradient(@from, @to){
+	background: lighten(@to, 1);
+	//@svgG: e(%('url(gradient.php?from=%d&to=%d)', @from, @to));
+	//@svgGradient: e(`this.svgG.toJS().replace(/#/g, '')`); //svg IE9
+	//background: @svgGradient;
+	background: e(%('-webkit-gradient(linear, 0% 0%, 0% 100%, from(%d), to(%d))', @from, @to));
+	background:	e(%('-moz-linear-gradient(top, %d, %d)', @from, @to));
+	//-pie-background: e(%('linear-gradient(%d, %d)', @from, @to));
+	//.pie();
+}
+
+.columns(@count, @gap:20px) {
+	-moz-column-count:@count;
+	-moz-column-gap:@gap;
+	-webkit-column-count:@count;
+	-webkit-column-gap:@gap;
+	column-count:@count;
+	column-gap:@gap;
+}
+ 
+.IR() {
+	display: block;
+	text-align: left;
+	text-indent: -9999px;
+	overflow: hidden;
+}
+.IR(@width, @height) {
+	width: @width;
+	height: @height;
+}
+.IR(@width, @height, @bg, @xy:0 0) {
+	width: @width;
+	height: @height;
+	background:@bg no-repeat @xy;
+}
+ 
+.sprite(@posX:0, @posY:0) {
+	background-position: e(%("%d %d", @x*@posX, @y*@posY));
+}
+ 
+.title(@posY: 0) {
+	.IR(200px, 25px);
+	background:url(../_img/sprite_titulos.png) no-repeat 0 @posY;
+}
+
+.pie() {
+	behavior:url(/css/PIE.htc);
+}
