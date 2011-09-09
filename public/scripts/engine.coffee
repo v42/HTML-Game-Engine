@@ -54,5 +54,5 @@ class Engine
 		
 	display_game:(interpolation)=>
 		@mostrou++
-		console.log interpolation
+		#console.log interpolation
 		#console.log "mostrou"

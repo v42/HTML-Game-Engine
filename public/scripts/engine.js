@@ -57,8 +57,7 @@ Engine = (function() {
     return this.atualizou++;
   };
   Engine.prototype.display_game = function(interpolation) {
-    this.mostrou++;
-    return console.log(interpolation);
+    return this.mostrou++;
   };
   return Engine;
 })();
