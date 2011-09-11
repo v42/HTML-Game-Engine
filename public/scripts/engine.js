@@ -3,6 +3,7 @@ var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments)
 Engine = (function() {
   function Engine(game) {
     this.game = game;
+    this.change_state = __bind(this.change_state, this);
     this.display_game = __bind(this.display_game, this);
     this.update_game = __bind(this.update_game, this);
     this.stop = __bind(this.stop, this);
@@ -17,11 +18,11 @@ Engine = (function() {
     this.mostrou = 0;
   }
   Engine.prototype.start = function() {
-    console.log("Engine Started!");
     this.loops = 0;
     this.game.is_running = true;
     this.next_game_tick = this.get_tick_count();
     this.game_loop();
+    console.log("Engine Started!");
     return true;
   };
   Engine.prototype.game_loop = function() {
@@ -39,7 +40,7 @@ Engine = (function() {
     } else {
       console.log("Engine Stopped!");
       console.log("atualizou " + this.atualizou + " vezes");
-      return console.log("mostrou " + this.mostrou + " quadros");
+      console.log("mostrou " + this.mostrou + " quadros");
     }
   };
   Engine.prototype.stop = function() {
@@ -54,10 +55,32 @@ Engine = (function() {
     return tick;
   };
   Engine.prototype.update_game = function() {
-    return this.atualizou++;
+    this.atualizou++;
   };
   Engine.prototype.display_game = function(interpolation) {
-    return this.mostrou++;
+    this.mostrou++;
+  };
+  Engine.prototype.change_state = function(state) {
+    var idx, image, imageBuffer, _fn, _len, _ref;
+    this.game.state = state;
+    this.game.state.loaded = false;
+    imageBuffer = new Array;
+    _ref = this.assets[state].images;
+    _fn = function(image) {
+      imageBuffer.images[idx] = new Image;
+      imageBuffer.images[idx].onload = function() {
+        return this.loaded = true;
+      };
+      return imageBuffer.images[idx].onerror(__bind(function() {
+        return console.log("erro na imagem " + image);
+      }, this));
+    };
+    for (image = 0, _len = _ref.length; image < _len; image++) {
+      idx = _ref[image];
+      _fn(image);
+    }
+    this.game.state.loaded = true;
+    return true;
   };
   return Engine;
 })();

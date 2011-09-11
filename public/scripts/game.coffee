@@ -1,6 +1,7 @@
 class Game
 	constructor:->
-		@is_running = false
+		@states
+		@is_running
 		@TICKS_PER_SECOND
 		@MAX_FPS
 		@MAX_FRAMESKIP
