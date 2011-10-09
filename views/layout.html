@@ -17,26 +17,24 @@
 <body class="page-${route_clean}">
 <div id="wrapper">
 
-	<header id="header">
+	<!--header id="header">
 		<h1><a class="logo" href="/">My Game Engine</a></h1>
-	</header>
+	</header-->
 
 	
 	<div id="content" role="main">
 		{{html body}}
 	</div>
 	
-	<footer id="footer" role="contentinfo">
+	<!--footer id="footer" role="contentinfo">
 		<small><a href="http://www.v42.com.br" target="_blank">by v42</a></small>
-	</footer>
+	</footer-->
 
-	<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js"></script>
+	<!--script src="http://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js"></script-->
 	<script>!window.jQuery && document.write(unescape('%3Cscript src="scripts/jquery-1.6.2.min.js"%3E%3C/script%3E'))</script>
-	{{each scripts}}
-	<script src="${$value}"></script>
-	{{/each}}
 	<script src="/scripts/base.js"></script>
 	<script src="/scripts/engine.js"></script>
+	<script src="/scripts/game.js"></script>
 </div>
 </body>
 </html>

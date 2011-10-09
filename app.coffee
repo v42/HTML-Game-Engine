@@ -4,7 +4,7 @@ mongoose      = require 'mongoose'
 MongoStore    = require 'connect-mongo'
 less          = require 'less'
 jqtpl         = require 'jqtpl'
-sugar         = require 'sugar'
+#sugar         = require 'sugar'
 
 #### Server config
 app = express.createServer()

@@ -1,3 +1,5 @@
 *.tmproj
 *.DS_Store
 node_modules/
+public/scripts/less.js
+public/scripts/jquery-1.6.2.min.js
