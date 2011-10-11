@@ -9,6 +9,7 @@ class Engine
 		
 		#canvas settings
 		@CANVAS_ID = 'game_canvas'
+		@CLEAR_COLOR = '#000'
 		@CANVAS = document.getElementById @CANVAS_ID
 		@CANVAS.width = 640
 		@CANVAS.height = 480
@@ -18,7 +19,8 @@ class Engine
 		@STATE = 
 			name: 'Game'
 			loaded: false
-			
+		@ENTITIES = {}
+		
 		#assets
 		@imagesPath = "/assets/images/"
 		@soundPath = "/assets/sound/"
@@ -28,8 +30,12 @@ class Engine
 		@is_running = true
 		console.log "Engine Started!"
 		@load_entities()
-		@next_game_tick = @get_tick_count()
+		now = new Date()
+		@first_tick = now.getTime()
+		@tic_tac()
+		@next_game_tick = @tick
 		@game_loop()
+		@calculate_fps()
 		return true
 	
 	# Game Loop implement based on deWiTTERS'
@@ -37,13 +43,14 @@ class Engine
 	# http://www.koonsolo.com/news/dewitters-gameloop/
 	game_loop:=>
 		if @is_running
+			@tic_tac()
 			@loops = 0
-			if @get_tick_count() > @next_game_tick && @loops < @MAX_FRAMESKIP
+			if @tick > @next_game_tick && @loops < @MAX_FRAMESKIP
 				@update_game()
 				@next_game_tick += @SKIP_TICKS
 				@loops++
 			
-			interpolation = parseFloat(@get_tick_count() + @SKIP_TICKS - @next_game_tick)/parseFloat(@SKIP_TICKS)
+			interpolation = parseFloat(@tick + @SKIP_TICKS - @next_game_tick)/parseFloat(@SKIP_TICKS)
 			@display_game interpolation
 			
 			setTimeout @game_loop, 1000 / @UPDATE_RATIO
@@ -59,17 +66,37 @@ class Engine
 		@is_running = false
 		return !@is_running
 	
-	get_tick_count:->
+	tic_tac:=>
 		now = new Date()
-		tick = now.getTime()
-		return tick
+		@tick = now.getTime() - @first_tick
+		@animation_tick = @tick/1000
+	
+	calculate_fps:=>
+		@fps = @frames
+		@frames = 0
+		#console.log 'FPS: ' + @fps if @fps
+		setTimeout @calculate_fps, 1000
 	
 	update_game:=>
 		@state_machine()
+		@update_objects()
 		return
 
 	state_machine:=>
 		return
+		
+	update_objects:=>
+		#console.log @tick/1000
+		#console.log @fps
+		for obj in @ENTITIES
+			obj.frameCount = if obj.frameCount < obj.stateMap[obj.state].length-1 then obj.frameCount+1 else 0
+			obj.frame = obj.stateMap[obj.state][obj.frameCount]
+			return
+		
+	change_obj_state:(obj, state)=>
+		obj.state = state
+		obj.frame = obj.stateMap[state][0]
+		obj.frameCount = 0
 		
 	clear:(color)=>
 		@ctx.fillStyle = color
@@ -79,33 +106,33 @@ class Engine
 		@ctx.fill()
 		
 	display_game:(interpolation)=>
-		@clear '#000'
+		@clear @CLEAR_COLOR if @CLEAR_COLOR?
 		for obj in @ENTITIES
 			@draw obj if obj.visible
 			#console.log interpolation
+		@frames++
 		return
 	
 	draw:(obj)=>
 		if obj.img
-			try @ctx.drawImage obj.image, 0, 0, obj.width, obj.height, obj.X, obj.Y, obj.width*obj.scale, obj.height*obj.scale
+			try @ctx.drawImage obj.image, 0 + obj.width*obj.frame, 0, obj.width, obj.height, obj.X, obj.Y, obj.width*obj.scale, obj.height*obj.scale
 			catch e
 				console.log e
-		
+					
 	load_entities:=>
-		console.log "carregando entidades..."
 		@STATE.loaded = false
 		for obj in @ENTITIES
 			if obj.img
 				obj.image = new Image
 				obj.image.onload = ->
 					obj.image.loaded = true
-					console.log obj.img + " loaded!"
+					#console.log obj.img + " loaded!"
 				obj.image.src = @imagesPath + obj.img
 				
 		@STATE.loaded = true
 		#console.log 'loaded!'
-###		
-class Entity
+		
+class GameEntity
 	constructor:->
 		@id
 		@x
@@ -119,7 +146,7 @@ class Entity
 		@image
 		@visible = true
 
-class Character extends Entity
+class Character extends GameEntity
 	constructor:->
 		super
 		@life
@@ -137,19 +164,19 @@ class Enemy extends Character
 	constructor:->
 		super
 
-class Event extends Entity
+class GameEvent extends GameEntity
 	constructor:->
 		super
 		
-class Object extends Entity
+class GameObject extends GameEntity
 	constructor:->
 		super
 
-class Item extends Object
+class Item extends GameObject
 	constructor:->
 		super
 
-class Scenary extends Entity
+class Scenary extends GameEntity
 	constructor:->
 		super
 		@image
@@ -157,4 +184,3 @@ class Scenary extends Entity
 class Background extends Scenary
 	constructor:->
 		super
-###
