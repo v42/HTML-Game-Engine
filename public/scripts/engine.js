@@ -1,4 +1,4 @@
-var Background, Character, Enemy, Engine, GameEntity, GameEvent, GameObject, Item, NPC, Player, Scenary;
+var Background, Engine;
 var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; }, __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
   for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
   function ctor() { this.constructor = child; }
@@ -13,17 +13,23 @@ Engine = (function() {
     this.draw = __bind(this.draw, this);
     this.display_game = __bind(this.display_game, this);
     this.clear = __bind(this.clear, this);
-    this.change_obj_state = __bind(this.change_obj_state, this);
-    this.update_objects = __bind(this.update_objects, this);
+    this.update_animation = __bind(this.update_animation, this);
+    this.update_entities = __bind(this.update_entities, this);
     this.state_machine = __bind(this.state_machine, this);
     this.update_game = __bind(this.update_game, this);
     this.calculate_fps = __bind(this.calculate_fps, this);
     this.tic_tac = __bind(this.tic_tac, this);
+    this.move = __bind(this.move, this);
+    this.pause = __bind(this.pause, this);
+    this.process_inputs = __bind(this.process_inputs, this);
+    this.key_up = __bind(this.key_up, this);
+    this.key_down = __bind(this.key_down, this);
+    this.bind_keys = __bind(this.bind_keys, this);
     this.stop = __bind(this.stop, this);
     this.game_loop = __bind(this.game_loop, this);
     this.start = __bind(this.start, this);    this.TICKS_PER_SECOND = 25;
     this.SKIP_TICKS = 1000 / this.TICKS_PER_SECOND;
-    this.MAX_FRAMESKIP = 10;
+    this.MAX_FRAMESKIP = 1;
     this.MAX_FPS = 60;
     this.UPDATE_RATIO = this.MAX_FPS > this.TICKS_PER_SECOND ? this.MAX_FPS : this.TICKS_PER_SECOND;
     this.CANVAS_ID = 'game_canvas';
@@ -37,6 +43,8 @@ Engine = (function() {
       loaded: false
     };
     this.ENTITIES = {};
+    this.KEYS = {};
+    this.KEY_PRESSED = {};
     this.imagesPath = "/assets/images/";
     this.soundPath = "/assets/sound/";
   }
@@ -46,6 +54,7 @@ Engine = (function() {
     this.is_running = true;
     console.log("Engine Started!");
     this.load_entities();
+    this.bind_keys();
     now = new Date();
     this.first_tick = now.getTime();
     this.tic_tac();
@@ -69,8 +78,6 @@ Engine = (function() {
       setTimeout(this.game_loop, 1000 / this.UPDATE_RATIO);
     } else {
       console.log("Engine Stopped!");
-      console.log("atualizou " + this.atualizou + " vezes");
-      console.log("mostrou " + this.mostrou + " quadros");
     }
   };
   Engine.prototype.stop = function() {
@@ -78,6 +85,44 @@ Engine = (function() {
     this.is_running = false;
     return !this.is_running;
   };
+  Engine.prototype.bind_keys = function() {
+    var a, k, obj, _i, _len, _ref, _ref2;
+    _ref = this.ENTITIES;
+    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+      obj = _ref[_i];
+      if (obj.keys != null) {
+        _ref2 = obj.keys;
+        for (k in _ref2) {
+          a = _ref2[k];
+          this.KEYS[k] = obj[a];
+          this.KEY_PRESSED[k] = false;
+        }
+      }
+    }
+    document.onkeydown = this.key_down;
+    document.onkeyup = this.key_up;
+  };
+  Engine.prototype.key_down = function() {
+    return this.KEY_PRESSED[event.keyCode] = true;
+  };
+  Engine.prototype.key_up = function() {
+    this.KEY_PRESSED[event.keyCode] = false;
+    if (this.KEYS[event.keyCode] != null) {
+      return this.KEYS[event.keyCode](false);
+    }
+  };
+  Engine.prototype.process_inputs = function() {
+    var action, key, _ref, _results;
+    _ref = this.KEYS;
+    _results = [];
+    for (key in _ref) {
+      action = _ref[key];
+      _results.push((this.KEYS[key] != null) && this.KEY_PRESSED[key] ? action(true) : void 0);
+    }
+    return _results;
+  };
+  Engine.prototype.pause = function() {};
+  Engine.prototype.move = function(obj, direction) {};
   Engine.prototype.tic_tac = function() {
     var now;
     now = new Date();
@@ -90,24 +135,31 @@ Engine = (function() {
     return setTimeout(this.calculate_fps, 1000);
   };
   Engine.prototype.update_game = function() {
+    this.process_inputs();
+    this.update_entities();
     this.state_machine();
-    this.update_objects();
   };
   Engine.prototype.state_machine = function() {};
-  Engine.prototype.update_objects = function() {
+  Engine.prototype.update_entities = function() {
     var obj, _i, _len, _ref;
     _ref = this.ENTITIES;
     for (_i = 0, _len = _ref.length; _i < _len; _i++) {
       obj = _ref[_i];
-      obj.frameCount = obj.frameCount < obj.stateMap[obj.state].length - 1 ? obj.frameCount + 1 : 0;
-      obj.frame = obj.stateMap[obj.state][obj.frameCount];
-      return;
+      obj.update();
     }
   };
-  Engine.prototype.change_obj_state = function(obj, state) {
-    obj.state = state;
-    obj.frame = obj.stateMap[state][0];
-    return obj.frameCount = 0;
+  Engine.prototype.update_animation = function() {
+    var obj, _i, _len, _ref;
+    _ref = this.ENTITIES;
+    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+      obj = _ref[_i];
+      if (obj.frameCount > this.MAX_FPS / obj.frameRate) {
+        obj.currentFrame = obj.currentFrame < obj.animations[obj.state].frames.length - 1 ? obj.currentFrame + 1 : 0;
+        obj.frameCount = 0;
+      }
+      obj.frame = obj.animations[obj.state].frames[obj.currentFrame];
+      obj.frameCount++;
+    }
   };
   Engine.prototype.clear = function(color) {
     this.ctx.fillStyle = color;
@@ -121,6 +173,7 @@ Engine = (function() {
     if (this.CLEAR_COLOR != null) {
       this.clear(this.CLEAR_COLOR);
     }
+    this.update_animation();
     _ref = this.ENTITIES;
     for (_i = 0, _len = _ref.length; _i < _len; _i++) {
       obj = _ref[_i];
@@ -157,83 +210,166 @@ Engine = (function() {
   };
   return Engine;
 })();
-GameEntity = (function() {
+Engine.GameEntity = (function() {
   function GameEntity() {
-    this.id;
-    this.x;
-    this.y;
+    this.change_animation_state = __bind(this.change_animation_state, this);
+    this.move = __bind(this.move, this);
+    this.update = __bind(this.update, this);    this.id;
+    this.X;
+    this.Y;
     this.width;
     this.height;
     this.scale;
-    this.frame;
-    this.frameCount;
-    this.state;
+    this.frame = 0;
+    this.frameCount = 0;
+    this.currentFrame = 0;
+    this.frameRate = 10;
+    this.state = 'idle';
     this.image;
     this.visible = true;
+    this.speed = 0;
+    this.max_speed = 10;
+    this.acceleration = 2;
   }
+  GameEntity.prototype.update = function() {};
+  GameEntity.prototype.move = function(X, Y) {
+    this.X = X;
+    return this.Y = Y;
+  };
+  GameEntity.prototype.change_animation_state = function(state) {
+    if (this.state === state) {
+      return false;
+    }
+    this.frameCount = 0;
+    this.currentFrame = 0;
+    this.frame = 0;
+    return this.state = state;
+  };
   return GameEntity;
 })();
-Character = (function() {
-  __extends(Character, GameEntity);
+Engine.Character = (function() {
+  __extends(Character, Engine.GameEntity);
   function Character() {
     Character.__super__.constructor.apply(this, arguments);
-    this.life;
-    this.vulnerable;
   }
   return Character;
 })();
-Player = (function() {
-  __extends(Player, Character);
+Engine.Player = (function() {
+  __extends(Player, Engine.Character);
   function Player() {
-    Player.__super__.constructor.apply(this, arguments);
+    this.look_up = __bind(this.look_up, this);
+    this.crouch = __bind(this.crouch, this);
+    this.jump = __bind(this.jump, this);
+    this.move_left = __bind(this.move_left, this);
+    this.move_right = __bind(this.move_right, this);
+    this.update = __bind(this.update, this);    Player.__super__.constructor.apply(this, arguments);
   }
+  Player.prototype.update = function() {
+    var _ref;
+    Player.__super__.update.apply(this, arguments);
+    this.X += this.speed;
+    if (this.jumping) {} else if (this.moving_left && !this.moving_right) {
+      this.change_animation_state('move_left');
+    } else if (this.moving_right && !this.moving_left) {
+      this.change_animation_state('move_right');
+    } else {
+      this.change_animation_state('idle');
+    }
+    if (!this.jumping && this.speed !== 0) {
+      this.speed = this.speed * 0.8;
+      if ((-this.acceleration + 1 < (_ref = this.speed) && _ref < this.acceleration - 1)) {
+        return this.speed = 0;
+      }
+    }
+  };
+  Player.prototype.move_right = function(key) {
+    if (key) {
+      this.moving_right = true;
+      if (this.speed <= this.max_speed) {
+        return this.speed += this.acceleration;
+      }
+    } else {
+      return this.moving_right = false;
+    }
+  };
+  Player.prototype.move_left = function(key) {
+    if (key) {
+      this.moving_left = true;
+      if (this.speed >= -this.max_speed) {
+        return this.speed -= this.acceleration;
+      }
+    } else {
+      return this.moving_left = false;
+    }
+  };
+  Player.prototype.jump = function(key) {
+    if (key) {
+      return this.is_jumping = true;
+    } else {
+      return this.is_jumping = false;
+    }
+  };
+  Player.prototype.crouch = function(key) {
+    if (key && !this.jumping && !this.falling && !this.moving_left && !this.moving_right) {
+      return this.is_crouching = true;
+    } else {
+      return this.is_crouching = false;
+    }
+  };
+  Player.prototype.look_up = function() {
+    if (key && !this.jumping && !this.falling) {
+      return this.is_looking_up = true;
+    } else {
+      return this.is_looking_up = false;
+    }
+  };
   return Player;
 })();
-NPC = (function() {
-  __extends(NPC, Character);
+Engine.NPC = (function() {
+  __extends(NPC, Engine.Character);
   function NPC() {
     NPC.__super__.constructor.apply(this, arguments);
   }
   return NPC;
 })();
-Enemy = (function() {
-  __extends(Enemy, Character);
+Engine.Enemy = (function() {
+  __extends(Enemy, Engine.Character);
   function Enemy() {
     Enemy.__super__.constructor.apply(this, arguments);
   }
   return Enemy;
 })();
-GameEvent = (function() {
-  __extends(GameEvent, GameEntity);
+Engine.GameEvent = (function() {
+  __extends(GameEvent, Engine.GameEntity);
   function GameEvent() {
     GameEvent.__super__.constructor.apply(this, arguments);
   }
   return GameEvent;
 })();
-GameObject = (function() {
-  __extends(GameObject, GameEntity);
+Engine.GameObject = (function() {
+  __extends(GameObject, Engine.GameEntity);
   function GameObject() {
     GameObject.__super__.constructor.apply(this, arguments);
   }
   return GameObject;
 })();
-Item = (function() {
-  __extends(Item, GameObject);
+Engine.Item = (function() {
+  __extends(Item, Engine.GameObject);
   function Item() {
     Item.__super__.constructor.apply(this, arguments);
   }
   return Item;
 })();
-Scenary = (function() {
-  __extends(Scenary, GameEntity);
-  function Scenary() {
-    Scenary.__super__.constructor.apply(this, arguments);
+Engine.Scenario = (function() {
+  __extends(Scenario, Engine.GameEntity);
+  function Scenario() {
+    Scenario.__super__.constructor.apply(this, arguments);
     this.image;
   }
-  return Scenary;
+  return Scenario;
 })();
 Background = (function() {
-  __extends(Background, Scenary);
+  __extends(Background, Engine.Scenario);
   function Background() {
     Background.__super__.constructor.apply(this, arguments);
   }

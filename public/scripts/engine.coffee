@@ -3,7 +3,7 @@ class Engine
 		#framerate options
 		@TICKS_PER_SECOND = 25
 		@SKIP_TICKS = 1000 / @TICKS_PER_SECOND
-		@MAX_FRAMESKIP = 10
+		@MAX_FRAMESKIP = 1
 		@MAX_FPS = 60
 		@UPDATE_RATIO = if @MAX_FPS>@TICKS_PER_SECOND then @MAX_FPS else @TICKS_PER_SECOND
 		
@@ -21,6 +21,10 @@ class Engine
 			loaded: false
 		@ENTITIES = {}
 		
+		#keys
+		@KEYS = {}
+		@KEY_PRESSED = {}
+		
 		#assets
 		@imagesPath = "/assets/images/"
 		@soundPath = "/assets/sound/"
@@ -30,6 +34,7 @@ class Engine
 		@is_running = true
 		console.log "Engine Started!"
 		@load_entities()
+		@bind_keys()
 		now = new Date()
 		@first_tick = now.getTime()
 		@tic_tac()
@@ -57,15 +62,38 @@ class Engine
 			return
 		else
 			console.log "Engine Stopped!"
-			console.log "atualizou " + @atualizou + " vezes"
-			console.log "mostrou " + @mostrou + " quadros"
 			return
 
 	stop:=>
 		console.log "Engine Stopping..."
 		@is_running = false
 		return !@is_running
-	
+		
+	bind_keys:=>
+		for obj in @ENTITIES
+			if obj.keys?
+				for k, a of obj.keys
+					@KEYS[k] = obj[a]
+					@KEY_PRESSED[k] = false
+		document.onkeydown = @key_down
+		document.onkeyup = @key_up
+		return
+		
+	key_down:=>
+		@KEY_PRESSED[event.keyCode] = true
+		
+	key_up:=>
+		@KEY_PRESSED[event.keyCode] = false
+		@KEYS[event.keyCode] false if @KEYS[event.keyCode]?
+		
+	process_inputs:=>
+		for key, action of @KEYS
+			action true if @KEYS[key]? and @KEY_PRESSED[key]
+		
+	pause:=>
+		
+	move:(obj, direction)=>
+		
 	tic_tac:=>
 		now = new Date()
 		@tick = now.getTime() - @first_tick
@@ -78,25 +106,27 @@ class Engine
 		setTimeout @calculate_fps, 1000
 	
 	update_game:=>
+		@process_inputs()
+		@update_entities()
 		@state_machine()
-		@update_objects()
 		return
 
 	state_machine:=>
 		return
 		
-	update_objects:=>
-		#console.log @tick/1000
-		#console.log @fps
+	update_entities:=>
 		for obj in @ENTITIES
-			obj.frameCount = if obj.frameCount < obj.stateMap[obj.state].length-1 then obj.frameCount+1 else 0
-			obj.frame = obj.stateMap[obj.state][obj.frameCount]
-			return
+			obj.update()
+		return
 		
-	change_obj_state:(obj, state)=>
-		obj.state = state
-		obj.frame = obj.stateMap[state][0]
-		obj.frameCount = 0
+	update_animation:=>
+		for obj in @ENTITIES
+			if obj.frameCount > @MAX_FPS/obj.frameRate
+				obj.currentFrame = if obj.currentFrame < obj.animations[obj.state].frames.length-1 then obj.currentFrame+1 else 0
+				obj.frameCount = 0
+			obj.frame = obj.animations[obj.state].frames[obj.currentFrame]
+			obj.frameCount++
+		return
 		
 	clear:(color)=>
 		@ctx.fillStyle = color
@@ -107,6 +137,7 @@ class Engine
 		
 	display_game:(interpolation)=>
 		@clear @CLEAR_COLOR if @CLEAR_COLOR?
+		@update_animation()
 		for obj in @ENTITIES
 			@draw obj if obj.visible
 			#console.log interpolation
@@ -132,55 +163,121 @@ class Engine
 		@STATE.loaded = true
 		#console.log 'loaded!'
 		
-class GameEntity
+class Engine.GameEntity
 	constructor:->
 		@id
-		@x
-		@y
+		@X
+		@Y
 		@width
 		@height
 		@scale
-		@frame
-		@frameCount
-		@state
+		@frame = 0
+		@frameCount = 0
+		@currentFrame = 0
+		@frameRate = 10
+		@state = 'idle'
 		@image
 		@visible = true
-
-class Character extends GameEntity
-	constructor:->
-		super
-		@life
-		@vulnerable
+		@speed = 0
+		@max_speed = 10
+		@acceleration = 2
 	
-class Player extends Character
+	update:=>
+		
+	
+	move:(X,Y)=>
+		@X = X
+		@Y = Y
+		
+	change_animation_state:(state)=>
+		return false if @state == state
+		@frameCount = 0
+		@currentFrame = 0
+		@frame = 0
+		@state = state
+		
+class Engine.Character extends Engine.GameEntity
 	constructor:->
 		super
-
-class NPC extends Character
-	constructor:->
-		super
-
-class Enemy extends Character
-	constructor:->
-		super
-
-class GameEvent extends GameEntity
+	
+class Engine.Player extends Engine.Character
 	constructor:->
 		super
 		
-class GameObject extends GameEntity
+	update:=>
+		super
+		@X += @speed
+			
+		if @jumping
+			#programming jump here...
+		else if @moving_left && not @moving_right
+			@change_animation_state 'move_left'
+		else if @moving_right && not @moving_left
+			@change_animation_state 'move_right'
+		else
+			@change_animation_state 'idle'
+		
+		if not @jumping and @speed != 0
+			@speed = @speed * 0.8
+			@speed = 0 if -@acceleration+1 < @speed < @acceleration-1
+		
+	move_right:(key)=>
+		if key
+			@moving_right = true
+			@speed += @acceleration if @speed <= @max_speed
+		else
+			@moving_right = false
+		
+	move_left:(key)=>
+		if key
+			@moving_left = true
+			@speed -= @acceleration if @speed >= -@max_speed
+		else
+			@moving_left = false
+		
+			
+	jump:(key)=>
+		if key
+			@is_jumping = true
+		else
+			@is_jumping = false
+			
+	crouch:(key)=>
+		if key && not @jumping && not @falling && not @moving_left && not @moving_right
+			@is_crouching = true 
+		else
+			@is_crouching = false
+	
+	look_up:=>
+		if key && not @jumping && not @falling
+			@is_looking_up = true 
+		else
+			@is_looking_up = false
+class Engine.NPC extends Engine.Character
 	constructor:->
 		super
 
-class Item extends GameObject
+class Engine.Enemy extends Engine.Character
 	constructor:->
 		super
 
-class Scenary extends GameEntity
+class Engine.GameEvent extends Engine.GameEntity
+	constructor:->
+		super
+		
+class Engine.GameObject extends Engine.GameEntity
+	constructor:->
+		super
+
+class Engine.Item extends Engine.GameObject
+	constructor:->
+		super
+
+class Engine.Scenario extends Engine.GameEntity
 	constructor:->
 		super
 		@image
 
-class Background extends Scenary
+class Background extends Engine.Scenario
 	constructor:->
 		super
