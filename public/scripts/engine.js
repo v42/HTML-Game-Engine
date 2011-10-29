@@ -1,4 +1,4 @@
-var Background, Engine;
+var Engine;
 var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; }, __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
   for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
   function ctor() { this.constructor = child; }
@@ -9,6 +9,7 @@ var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments)
 };
 Engine = (function() {
   function Engine() {
+    this.load_obj = __bind(this.load_obj, this);
     this.load_entities = __bind(this.load_entities, this);
     this.draw = __bind(this.draw, this);
     this.display_game = __bind(this.display_game, this);
@@ -42,11 +43,19 @@ Engine = (function() {
       name: 'Game',
       loaded: false
     };
-    this.ENTITIES = {};
+    this.ENTITIES = [];
     this.KEYS = {};
     this.KEY_PRESSED = {};
     this.imagesPath = "/assets/images/";
     this.soundPath = "/assets/sound/";
+    this.WORLD = {
+      width: 1280,
+      height: 480
+    };
+    this.SCROLL = {
+      X: 0,
+      Y: 0
+    };
   }
   Engine.prototype.start = function() {
     var now;
@@ -86,19 +95,6 @@ Engine = (function() {
     return !this.is_running;
   };
   Engine.prototype.bind_keys = function() {
-    var a, k, obj, _i, _len, _ref, _ref2;
-    _ref = this.ENTITIES;
-    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-      obj = _ref[_i];
-      if (obj.keys != null) {
-        _ref2 = obj.keys;
-        for (k in _ref2) {
-          a = _ref2[k];
-          this.KEYS[k] = obj[a];
-          this.KEY_PRESSED[k] = false;
-        }
-      }
-    }
     document.onkeydown = this.key_down;
     document.onkeyup = this.key_up;
   };
@@ -186,27 +182,41 @@ Engine = (function() {
   Engine.prototype.draw = function(obj) {
     if (obj.img) {
       try {
-        return this.ctx.drawImage(obj.image, 0 + obj.width * obj.frame, 0, obj.width, obj.height, obj.X, obj.Y, obj.width * obj.scale, obj.height * obj.scale);
+        return this.ctx.drawImage(obj.image, 0 + obj.width * obj.frame, 0, obj.width, obj.height, obj.X - this.SCROLL.X, obj.Y - this.SCROLL.Y, obj.width * obj.scale, obj.height * obj.scale);
       } catch (e) {
         return console.log(e);
       }
     }
   };
   Engine.prototype.load_entities = function() {
-    var obj, _i, _len, _ref;
+    var obj, _i, _len, _ref, _results;
     this.STATE.loaded = false;
-    _ref = this.ENTITIES;
+    _ref = this.PLAYERS;
+    _results = [];
     for (_i = 0, _len = _ref.length; _i < _len; _i++) {
       obj = _ref[_i];
-      if (obj.img) {
-        obj.image = new Image;
-        obj.image.onload = function() {
-          return obj.image.loaded = true;
-        };
-        obj.image.src = this.imagesPath + obj.img;
+      _results.push(this.load_obj(obj));
+    }
+    return _results;
+  };
+  Engine.prototype.load_obj = function(obj) {
+    var a, k, _ref;
+    if (obj.img != null) {
+      obj.image = new Image;
+      obj.image.onload = function() {
+        return obj.image.loaded = true;
+      };
+      obj.image.src = this.imagesPath + obj.img;
+    }
+    if (obj.keys != null) {
+      _ref = obj.keys;
+      for (k in _ref) {
+        a = _ref[k];
+        this.KEYS[k] = obj[a];
+        this.KEY_PRESSED[k] = false;
       }
     }
-    return this.STATE.loaded = true;
+    return this.ENTITIES.push(obj);
   };
   return Engine;
 })();
@@ -227,9 +237,6 @@ Engine.GameEntity = (function() {
     this.state = 'idle';
     this.image;
     this.visible = true;
-    this.speed = 0;
-    this.max_speed = 10;
-    this.acceleration = 2;
   }
   GameEntity.prototype.update = function() {};
   GameEntity.prototype.move = function(X, Y) {
@@ -251,8 +258,29 @@ Engine.Character = (function() {
   __extends(Character, Engine.GameEntity);
   function Character() {
     Character.__super__.constructor.apply(this, arguments);
+    this.speed = 0;
+    this.max_speed = 10;
+    this.acceleration = 2;
   }
   return Character;
+})();
+Engine.Level = (function() {
+  __extends(Level, Engine.GameEntity);
+  function Level() {
+    Level.__super__.constructor.apply(this, arguments);
+    this.tilemap;
+  }
+  return Level;
+})();
+Engine.Background = (function() {
+  __extends(Background, Engine.GameEntity);
+  function Background() {
+    Background.__super__.constructor.apply(this, arguments);
+    this.depth;
+    this.tilemap;
+    this.repeatable;
+  }
+  return Background;
 })();
 Engine.Player = (function() {
   __extends(Player, Engine.Character);
@@ -368,7 +396,7 @@ Engine.Scenario = (function() {
   }
   return Scenario;
 })();
-Background = (function() {
+Engine.Background = (function() {
   __extends(Background, Engine.Scenario);
   function Background() {
     Background.__super__.constructor.apply(this, arguments);

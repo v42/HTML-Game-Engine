@@ -19,7 +19,7 @@ class Engine
 		@STATE = 
 			name: 'Game'
 			loaded: false
-		@ENTITIES = {}
+		@ENTITIES = []
 		
 		#keys
 		@KEYS = {}
@@ -28,6 +28,15 @@ class Engine
 		#assets
 		@imagesPath = "/assets/images/"
 		@soundPath = "/assets/sound/"
+		
+		#world settings
+		@WORLD = 
+			width: 1280
+			height: 480
+			
+		@SCROLL = 
+			X:0,
+			Y:0
 		
 	start:=>
 		@loops = 0
@@ -70,11 +79,6 @@ class Engine
 		return !@is_running
 		
 	bind_keys:=>
-		for obj in @ENTITIES
-			if obj.keys?
-				for k, a of obj.keys
-					@KEYS[k] = obj[a]
-					@KEY_PRESSED[k] = false
 		document.onkeydown = @key_down
 		document.onkeyup = @key_up
 		return
@@ -146,22 +150,27 @@ class Engine
 	
 	draw:(obj)=>
 		if obj.img
-			try @ctx.drawImage obj.image, 0 + obj.width*obj.frame, 0, obj.width, obj.height, obj.X, obj.Y, obj.width*obj.scale, obj.height*obj.scale
+			try @ctx.drawImage obj.image, 0 + obj.width*obj.frame, 0, obj.width, obj.height, obj.X - @SCROLL.X, obj.Y - @SCROLL.Y, obj.width*obj.scale, obj.height*obj.scale
 			catch e
 				console.log e
 					
 	load_entities:=>
 		@STATE.loaded = false
-		for obj in @ENTITIES
-			if obj.img
-				obj.image = new Image
-				obj.image.onload = ->
-					obj.image.loaded = true
-					#console.log obj.img + " loaded!"
-				obj.image.src = @imagesPath + obj.img
-				
-		@STATE.loaded = true
-		#console.log 'loaded!'
+		for obj in @PLAYERS
+			@load_obj obj
+	
+	load_obj:(obj)=>
+		if obj.img?
+			obj.image = new Image
+			obj.image.onload = ->
+				obj.image.loaded = true
+				#console.log obj.img + " loaded!"
+			obj.image.src = @imagesPath + obj.img
+		if obj.keys?
+			for k, a of obj.keys
+				@KEYS[k] = obj[a]
+				@KEY_PRESSED[k] = false
+		@ENTITIES.push obj
 		
 class Engine.GameEntity
 	constructor:->
@@ -178,9 +187,6 @@ class Engine.GameEntity
 		@state = 'idle'
 		@image
 		@visible = true
-		@speed = 0
-		@max_speed = 10
-		@acceleration = 2
 	
 	update:=>
 		
@@ -195,10 +201,25 @@ class Engine.GameEntity
 		@currentFrame = 0
 		@frame = 0
 		@state = state
-		
+
 class Engine.Character extends Engine.GameEntity
 	constructor:->
 		super
+		@speed = 0
+		@max_speed = 10
+		@acceleration = 2
+
+class Engine.Level extends Engine.GameEntity
+	constructor:->
+		super
+		@tilemap
+		
+class Engine.Background extends Engine.GameEntity
+	constructor:->
+		super
+		@depth
+		@tilemap
+		@repeatable
 	
 class Engine.Player extends Engine.Character
 	constructor:->
@@ -278,6 +299,6 @@ class Engine.Scenario extends Engine.GameEntity
 		super
 		@image
 
-class Background extends Engine.Scenario
+class Engine.Background extends Engine.Scenario
 	constructor:->
 		super
