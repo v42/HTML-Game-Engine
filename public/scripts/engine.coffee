@@ -19,7 +19,8 @@ class Engine
 		@STATE = 
 			name: 'Game'
 			loaded: false
-		@ENTITIES = []
+		@BACKGROUND_ENTITIES = []
+		@LEVEL_ENTITIES = []
 		
 		#keys
 		@KEYS = {}
@@ -31,8 +32,8 @@ class Engine
 		
 		#world settings
 		@WORLD = 
-			width: 1280
-			height: 480
+			width: 0
+			height: 0
 			
 		@SCROLL = 
 			X:0,
@@ -112,24 +113,52 @@ class Engine
 	update_game:=>
 		@process_inputs()
 		@update_entities()
+		@update_game_scroll()
 		@state_machine()
 		return
-
+		
+	update_game_scroll:=>
+		x = 0
+		y = 0
+		for obj in @PLAYERS
+			x+= obj.X
+			y+= obj.Y
+		
+		x = x/@PLAYERS.length
+		y = y/@PLAYERS.length
+		
+		cw2 = @CANVAS.width/2
+		ch2 = @CANVAS.height/2
+		
+		if x>cw2
+			@SCROLL.X = if x-cw2 < @WORLD.width then x-cw2 else @WORLD.width
+		else @SCROLL.X =0
+		
+		if y>ch2
+			@SCROLL.Y = if y-ch2 < @WORLD.height then y-ch2 else @WORLD.height
+		else @SCROLL.Y = 0
+		
+		@SCROLL.X = @SCROLL.X | 0
+		@SCROLL.Y = @SCROLL.Y | 0
+		
 	state_machine:=>
 		return
 		
 	update_entities:=>
-		for obj in @ENTITIES
+		for obj in @BACKGROUNDS
+			obj.update()
+		for obj in @LEVELS
+			obj.update()
+		for obj in @PLAYERS
 			obj.update()
 		return
 		
-	update_animation:=>
-		for obj in @ENTITIES
-			if obj.frameCount > @MAX_FPS/obj.frameRate
-				obj.currentFrame = if obj.currentFrame < obj.animations[obj.state].frames.length-1 then obj.currentFrame+1 else 0
-				obj.frameCount = 0
-			obj.frame = obj.animations[obj.state].frames[obj.currentFrame]
-			obj.frameCount++
+	update_animation:(obj)=>
+		if obj.frameCount > @MAX_FPS/obj.frameRate
+			obj.currentFrame = if obj.currentFrame < obj.animations[obj.state].frames.length-1 then obj.currentFrame+1 else 0
+			obj.frameCount = 0
+		obj.frame = obj.animations[obj.state].frames[obj.currentFrame]
+		obj.frameCount++
 		return
 		
 	clear:(color)=>
@@ -141,36 +170,78 @@ class Engine
 		
 	display_game:(interpolation)=>
 		@clear @CLEAR_COLOR if @CLEAR_COLOR?
-		@update_animation()
-		for obj in @ENTITIES
+		for obj in @BACKGROUND_ENTITIES
+			@update_animation obj
 			@draw obj if obj.visible
-			#console.log interpolation
+		for obj in @LEVEL_ENTITIES
+			@update_animation obj
+			@draw obj if obj.visible
+		for obj in @PLAYERS
+			@update_animation obj
+			@draw obj if obj.visible
+		#for obj in @ENTITIES
+		#	@draw obj if obj.visible
+		#	#console.log interpolation
 		@frames++
 		return
 	
 	draw:(obj)=>
-		if obj.img
-			try @ctx.drawImage obj.image, 0 + obj.width*obj.frame, 0, obj.width, obj.height, obj.X - @SCROLL.X, obj.Y - @SCROLL.Y, obj.width*obj.scale, obj.height*obj.scale
-			catch e
-				console.log e
+		try
+			if obj.x?
+				@ctx.drawImage obj.image, obj.width*obj.x, obj.height*obj.y, obj.width, obj.height, obj.X - @SCROLL.X, obj.Y - @SCROLL.Y, obj.width*obj.scale, obj.height*obj.scale
+			else
+				@ctx.drawImage obj.image, obj.width*obj.frame, 0, obj.width, obj.height, obj.X - @SCROLL.X, obj.Y - @SCROLL.Y, obj.width*obj.scale, obj.height*obj.scale
+		catch e
+			#obj.visible = false
+			#console.log e
 					
 	load_entities:=>
 		@STATE.loaded = false
+		for obj in @BACKGROUNDS
+			@load_obj obj, 'background'
+		for obj in @LEVELS
+			@load_obj obj, 'level'
 		for obj in @PLAYERS
-			@load_obj obj
+			@load_obj obj, 'player'
 	
-	load_obj:(obj)=>
+	load_obj:(obj, type)=>
 		if obj.img?
 			obj.image = new Image
 			obj.image.onload = ->
 				obj.image.loaded = true
-				#console.log obj.img + " loaded!"
 			obj.image.src = @imagesPath + obj.img
-		if obj.keys?
+		if type=='player' and obj.keys?
 			for k, a of obj.keys
 				@KEYS[k] = obj[a]
 				@KEY_PRESSED[k] = false
-		@ENTITIES.push obj
+		if obj.tilemap?
+			x = 0
+			y = 0
+			ws = obj.width*obj.scale
+			tiles_count = obj.image_width/obj.width
+			for h in obj.tilemap
+				for l in h
+					if l != 0
+						o = new Engine.GameEntity
+						o.width = obj.width
+						o.height = obj.height
+						o.image = obj.image
+						o.scale = obj.scale
+						o.frameRate = obj.frameRate
+						o.x = l%tiles_count-1
+						o.y = (l-(l%tiles_count))/tiles_count
+						if o.x == -1
+							o.x = tiles_count-1
+							o.y = o.y-1
+						o.X = x*ws
+						o.Y = y*ws
+						@BACKGROUND_ENTITIES.push o if type=='background'
+						@LEVEL_ENTITIES.push o if type=='level'
+					x++
+				@WORLD.width = x*obj.scale if x*obj.scale>@WORLD.width
+				x = 0
+				y++
+			@WORLD.height = y*obj.scale if y*obj.scale>@WORLD.height
 		
 class Engine.GameEntity
 	constructor:->
@@ -179,7 +250,7 @@ class Engine.GameEntity
 		@Y
 		@width
 		@height
-		@scale
+		@scale = 1
 		@frame = 0
 		@frameCount = 0
 		@currentFrame = 0
@@ -187,7 +258,10 @@ class Engine.GameEntity
 		@state = 'idle'
 		@image
 		@visible = true
-	
+		@animations =
+			idle:
+				frames: [0]
+		
 	update:=>
 		
 	
@@ -206,6 +280,10 @@ class Engine.Character extends Engine.GameEntity
 	constructor:->
 		super
 		@speed = 0
+		@speed_y = 0
+		@attrition = 0.8
+		@gravity = 1
+		@jump_limit = 10
 		@max_speed = 10
 		@acceleration = 2
 
@@ -213,6 +291,7 @@ class Engine.Level extends Engine.GameEntity
 	constructor:->
 		super
 		@tilemap
+		@image_width
 		
 class Engine.Background extends Engine.GameEntity
 	constructor:->
@@ -228,19 +307,26 @@ class Engine.Player extends Engine.Character
 	update:=>
 		super
 		@X += @speed
-			
+		@Y += @speed_y
 		if @jumping
-			#programming jump here...
+			@change_animation_state 'jumping'
 		else if @moving_left && not @moving_right
 			@change_animation_state 'move_left'
 		else if @moving_right && not @moving_left
 			@change_animation_state 'move_right'
 		else
 			@change_animation_state 'idle'
+			
 		
 		if not @jumping and @speed != 0
-			@speed = @speed * 0.8
-			@speed = 0 if -@acceleration+1 < @speed < @acceleration-1
+			@speed = @speed * @attrition
+			@speed = 0 if -@acceleration+1.5 < @speed < @acceleration-1.5
+		
+		if @falling
+			@speed_y += @gravity
+			
+		@X = @X | 0
+		@Y = @Y | 0
 		
 	move_right:(key)=>
 		if key
@@ -259,9 +345,14 @@ class Engine.Player extends Engine.Character
 			
 	jump:(key)=>
 		if key
-			@is_jumping = true
+			if not @falling and @speed_y > -@jump_limit
+				@speed_y -= @jump_limit/2
+			else
+				@falling = true
 		else
-			@is_jumping = false
+			@jumping = false
+			@falling = true
+			@change_animation_state 'falling'
 			
 	crouch:(key)=>
 		if key && not @jumping && not @falling && not @moving_left && not @moving_right

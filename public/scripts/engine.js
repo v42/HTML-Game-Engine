@@ -17,6 +17,7 @@ Engine = (function() {
     this.update_animation = __bind(this.update_animation, this);
     this.update_entities = __bind(this.update_entities, this);
     this.state_machine = __bind(this.state_machine, this);
+    this.update_game_scroll = __bind(this.update_game_scroll, this);
     this.update_game = __bind(this.update_game, this);
     this.calculate_fps = __bind(this.calculate_fps, this);
     this.tic_tac = __bind(this.tic_tac, this);
@@ -43,14 +44,15 @@ Engine = (function() {
       name: 'Game',
       loaded: false
     };
-    this.ENTITIES = [];
+    this.BACKGROUND_ENTITIES = [];
+    this.LEVEL_ENTITIES = [];
     this.KEYS = {};
     this.KEY_PRESSED = {};
     this.imagesPath = "/assets/images/";
     this.soundPath = "/assets/sound/";
     this.WORLD = {
-      width: 1280,
-      height: 480
+      width: 0,
+      height: 0
     };
     this.SCROLL = {
       X: 0,
@@ -133,29 +135,62 @@ Engine = (function() {
   Engine.prototype.update_game = function() {
     this.process_inputs();
     this.update_entities();
+    this.update_game_scroll();
     this.state_machine();
+  };
+  Engine.prototype.update_game_scroll = function() {
+    var ch2, cw2, obj, x, y, _i, _len, _ref;
+    x = 0;
+    y = 0;
+    _ref = this.PLAYERS;
+    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+      obj = _ref[_i];
+      x += obj.X;
+      y += obj.Y;
+    }
+    x = x / this.PLAYERS.length;
+    y = y / this.PLAYERS.length;
+    cw2 = this.CANVAS.width / 2;
+    ch2 = this.CANVAS.height / 2;
+    if (x > cw2) {
+      this.SCROLL.X = x - cw2 < this.WORLD.width ? x - cw2 : this.WORLD.width;
+    } else {
+      this.SCROLL.X = 0;
+    }
+    if (y > ch2) {
+      this.SCROLL.Y = y - ch2 < this.WORLD.height ? y - ch2 : this.WORLD.height;
+    } else {
+      this.SCROLL.Y = 0;
+    }
+    this.SCROLL.X = this.SCROLL.X | 0;
+    return this.SCROLL.Y = this.SCROLL.Y | 0;
   };
   Engine.prototype.state_machine = function() {};
   Engine.prototype.update_entities = function() {
-    var obj, _i, _len, _ref;
-    _ref = this.ENTITIES;
+    var obj, _i, _j, _k, _len, _len2, _len3, _ref, _ref2, _ref3;
+    _ref = this.BACKGROUNDS;
     for (_i = 0, _len = _ref.length; _i < _len; _i++) {
       obj = _ref[_i];
       obj.update();
     }
-  };
-  Engine.prototype.update_animation = function() {
-    var obj, _i, _len, _ref;
-    _ref = this.ENTITIES;
-    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-      obj = _ref[_i];
-      if (obj.frameCount > this.MAX_FPS / obj.frameRate) {
-        obj.currentFrame = obj.currentFrame < obj.animations[obj.state].frames.length - 1 ? obj.currentFrame + 1 : 0;
-        obj.frameCount = 0;
-      }
-      obj.frame = obj.animations[obj.state].frames[obj.currentFrame];
-      obj.frameCount++;
+    _ref2 = this.LEVELS;
+    for (_j = 0, _len2 = _ref2.length; _j < _len2; _j++) {
+      obj = _ref2[_j];
+      obj.update();
     }
+    _ref3 = this.PLAYERS;
+    for (_k = 0, _len3 = _ref3.length; _k < _len3; _k++) {
+      obj = _ref3[_k];
+      obj.update();
+    }
+  };
+  Engine.prototype.update_animation = function(obj) {
+    if (obj.frameCount > this.MAX_FPS / obj.frameRate) {
+      obj.currentFrame = obj.currentFrame < obj.animations[obj.state].frames.length - 1 ? obj.currentFrame + 1 : 0;
+      obj.frameCount = 0;
+    }
+    obj.frame = obj.animations[obj.state].frames[obj.currentFrame];
+    obj.frameCount++;
   };
   Engine.prototype.clear = function(color) {
     this.ctx.fillStyle = color;
@@ -165,14 +200,30 @@ Engine = (function() {
     return this.ctx.fill();
   };
   Engine.prototype.display_game = function(interpolation) {
-    var obj, _i, _len, _ref;
+    var obj, _i, _j, _k, _len, _len2, _len3, _ref, _ref2, _ref3;
     if (this.CLEAR_COLOR != null) {
       this.clear(this.CLEAR_COLOR);
     }
-    this.update_animation();
-    _ref = this.ENTITIES;
+    _ref = this.BACKGROUND_ENTITIES;
     for (_i = 0, _len = _ref.length; _i < _len; _i++) {
       obj = _ref[_i];
+      this.update_animation(obj);
+      if (obj.visible) {
+        this.draw(obj);
+      }
+    }
+    _ref2 = this.LEVEL_ENTITIES;
+    for (_j = 0, _len2 = _ref2.length; _j < _len2; _j++) {
+      obj = _ref2[_j];
+      this.update_animation(obj);
+      if (obj.visible) {
+        this.draw(obj);
+      }
+    }
+    _ref3 = this.PLAYERS;
+    for (_k = 0, _len3 = _ref3.length; _k < _len3; _k++) {
+      obj = _ref3[_k];
+      this.update_animation(obj);
       if (obj.visible) {
         this.draw(obj);
       }
@@ -180,27 +231,39 @@ Engine = (function() {
     this.frames++;
   };
   Engine.prototype.draw = function(obj) {
-    if (obj.img) {
-      try {
-        return this.ctx.drawImage(obj.image, 0 + obj.width * obj.frame, 0, obj.width, obj.height, obj.X - this.SCROLL.X, obj.Y - this.SCROLL.Y, obj.width * obj.scale, obj.height * obj.scale);
-      } catch (e) {
-        return console.log(e);
+    try {
+      if (obj.x != null) {
+        return this.ctx.drawImage(obj.image, obj.width * obj.x, obj.height * obj.y, obj.width, obj.height, obj.X - this.SCROLL.X, obj.Y - this.SCROLL.Y, obj.width * obj.scale, obj.height * obj.scale);
+      } else {
+        return this.ctx.drawImage(obj.image, obj.width * obj.frame, 0, obj.width, obj.height, obj.X - this.SCROLL.X, obj.Y - this.SCROLL.Y, obj.width * obj.scale, obj.height * obj.scale);
       }
+    } catch (e) {
+
     }
   };
   Engine.prototype.load_entities = function() {
-    var obj, _i, _len, _ref, _results;
+    var obj, _i, _j, _k, _len, _len2, _len3, _ref, _ref2, _ref3, _results;
     this.STATE.loaded = false;
-    _ref = this.PLAYERS;
-    _results = [];
+    _ref = this.BACKGROUNDS;
     for (_i = 0, _len = _ref.length; _i < _len; _i++) {
       obj = _ref[_i];
-      _results.push(this.load_obj(obj));
+      this.load_obj(obj, 'background');
+    }
+    _ref2 = this.LEVELS;
+    for (_j = 0, _len2 = _ref2.length; _j < _len2; _j++) {
+      obj = _ref2[_j];
+      this.load_obj(obj, 'level');
+    }
+    _ref3 = this.PLAYERS;
+    _results = [];
+    for (_k = 0, _len3 = _ref3.length; _k < _len3; _k++) {
+      obj = _ref3[_k];
+      _results.push(this.load_obj(obj, 'player'));
     }
     return _results;
   };
-  Engine.prototype.load_obj = function(obj) {
-    var a, k, _ref;
+  Engine.prototype.load_obj = function(obj, type) {
+    var a, h, k, l, o, tiles_count, ws, x, y, _i, _j, _len, _len2, _ref, _ref2;
     if (obj.img != null) {
       obj.image = new Image;
       obj.image.onload = function() {
@@ -208,7 +271,7 @@ Engine = (function() {
       };
       obj.image.src = this.imagesPath + obj.img;
     }
-    if (obj.keys != null) {
+    if (type === 'player' && (obj.keys != null)) {
       _ref = obj.keys;
       for (k in _ref) {
         a = _ref[k];
@@ -216,7 +279,50 @@ Engine = (function() {
         this.KEY_PRESSED[k] = false;
       }
     }
-    return this.ENTITIES.push(obj);
+    if (obj.tilemap != null) {
+      x = 0;
+      y = 0;
+      ws = obj.width * obj.scale;
+      tiles_count = obj.image_width / obj.width;
+      _ref2 = obj.tilemap;
+      for (_i = 0, _len = _ref2.length; _i < _len; _i++) {
+        h = _ref2[_i];
+        for (_j = 0, _len2 = h.length; _j < _len2; _j++) {
+          l = h[_j];
+          if (l !== 0) {
+            o = new Engine.GameEntity;
+            o.width = obj.width;
+            o.height = obj.height;
+            o.image = obj.image;
+            o.scale = obj.scale;
+            o.frameRate = obj.frameRate;
+            o.x = l % tiles_count - 1;
+            o.y = (l - (l % tiles_count)) / tiles_count;
+            if (o.x === -1) {
+              o.x = tiles_count - 1;
+              o.y = o.y - 1;
+            }
+            o.X = x * ws;
+            o.Y = y * ws;
+            if (type === 'background') {
+              this.BACKGROUND_ENTITIES.push(o);
+            }
+            if (type === 'level') {
+              this.LEVEL_ENTITIES.push(o);
+            }
+          }
+          x++;
+        }
+        if (x * obj.scale > this.WORLD.width) {
+          this.WORLD.width = x * obj.scale;
+        }
+        x = 0;
+        y++;
+      }
+      if (y * obj.scale > this.WORLD.height) {
+        return this.WORLD.height = y * obj.scale;
+      }
+    }
   };
   return Engine;
 })();
@@ -229,7 +335,7 @@ Engine.GameEntity = (function() {
     this.Y;
     this.width;
     this.height;
-    this.scale;
+    this.scale = 1;
     this.frame = 0;
     this.frameCount = 0;
     this.currentFrame = 0;
@@ -237,6 +343,11 @@ Engine.GameEntity = (function() {
     this.state = 'idle';
     this.image;
     this.visible = true;
+    this.animations = {
+      idle: {
+        frames: [0]
+      }
+    };
   }
   GameEntity.prototype.update = function() {};
   GameEntity.prototype.move = function(X, Y) {
@@ -259,6 +370,10 @@ Engine.Character = (function() {
   function Character() {
     Character.__super__.constructor.apply(this, arguments);
     this.speed = 0;
+    this.speed_y = 0;
+    this.attrition = 0.8;
+    this.gravity = 1;
+    this.jump_limit = 10;
     this.max_speed = 10;
     this.acceleration = 2;
   }
@@ -269,6 +384,7 @@ Engine.Level = (function() {
   function Level() {
     Level.__super__.constructor.apply(this, arguments);
     this.tilemap;
+    this.image_width;
   }
   return Level;
 })();
@@ -296,7 +412,10 @@ Engine.Player = (function() {
     var _ref;
     Player.__super__.update.apply(this, arguments);
     this.X += this.speed;
-    if (this.jumping) {} else if (this.moving_left && !this.moving_right) {
+    this.Y += this.speed_y;
+    if (this.jumping) {
+      this.change_animation_state('jumping');
+    } else if (this.moving_left && !this.moving_right) {
       this.change_animation_state('move_left');
     } else if (this.moving_right && !this.moving_left) {
       this.change_animation_state('move_right');
@@ -304,11 +423,16 @@ Engine.Player = (function() {
       this.change_animation_state('idle');
     }
     if (!this.jumping && this.speed !== 0) {
-      this.speed = this.speed * 0.8;
-      if ((-this.acceleration + 1 < (_ref = this.speed) && _ref < this.acceleration - 1)) {
-        return this.speed = 0;
+      this.speed = this.speed * this.attrition;
+      if ((-this.acceleration + 1.5 < (_ref = this.speed) && _ref < this.acceleration - 1.5)) {
+        this.speed = 0;
       }
     }
+    if (this.falling) {
+      this.speed_y += this.gravity;
+    }
+    this.X = this.X | 0;
+    return this.Y = this.Y | 0;
   };
   Player.prototype.move_right = function(key) {
     if (key) {
@@ -332,9 +456,15 @@ Engine.Player = (function() {
   };
   Player.prototype.jump = function(key) {
     if (key) {
-      return this.is_jumping = true;
+      if (!this.falling && this.speed_y > -this.jump_limit) {
+        return this.speed_y -= this.jump_limit / 2;
+      } else {
+        return this.falling = true;
+      }
     } else {
-      return this.is_jumping = false;
+      this.jumping = false;
+      this.falling = true;
+      return this.change_animation_state('falling');
     }
   };
   Player.prototype.crouch = function(key) {

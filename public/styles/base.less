@@ -67,7 +67,9 @@ html {
 	background-image: radial-gradient(50% , ellipse closest-side, @blue, #000000 140%);
 }
 body {
-	
+	image-rendering:-moz-crisp-edges;
+	image-rendering:-webkit-optimize-contrast;
+	-ms-interpolation-mode:nearest-neighbor;
 }
 section, .the-form-divs, .the-event-list-div{
 	padding: 12px;
@@ -90,7 +92,6 @@ h2{
 	}
 }
 h1,h2,h3,h4,h5,h6 { text-rendering: optimizeLegibility; }
-
 //forms
 textarea.error,
 input.error {

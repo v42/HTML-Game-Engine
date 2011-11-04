@@ -404,6 +404,9 @@ html {
   background-image: -moz-radial-gradient(50%, ellipse closest-side, #00a0b0, #000000 140%);
   background-image: -webkit-radial-gradient(50%, ellipse closest-side, #00a0b0, #000000 140%);
   background-image: radial-gradient(50%, ellipse closest-side, #00a0b0, #000000 140%);
+  image-rendering: -moz-crisp-edges;
+  image-rendering: -webkit-optimize-contrast;
+  -ms-interpolation-mode: nearest-neighbor;
 }
 section, .the-form-divs, .the-event-list-div {
   padding: 12px;
