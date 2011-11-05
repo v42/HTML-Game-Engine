@@ -40,6 +40,7 @@ Engine = (function() {
     this.CANVAS.width = 640;
     this.CANVAS.height = 480;
     this.ctx = this.CANVAS.getContext('2d');
+    this.ctx.mozImageSmoothingEnabled = false;
     this.STATE = {
       name: 'Game',
       loaded: false
@@ -100,10 +101,10 @@ Engine = (function() {
     document.onkeydown = this.key_down;
     document.onkeyup = this.key_up;
   };
-  Engine.prototype.key_down = function() {
+  Engine.prototype.key_down = function(event) {
     return this.KEY_PRESSED[event.keyCode] = true;
   };
-  Engine.prototype.key_up = function() {
+  Engine.prototype.key_up = function(event) {
     this.KEY_PRESSED[event.keyCode] = false;
     if (this.KEYS[event.keyCode] != null) {
       return this.KEYS[event.keyCode](false);
@@ -374,8 +375,8 @@ Engine.Character = (function() {
     this.attrition = 0.8;
     this.gravity = 1;
     this.jump_limit = 10;
-    this.max_speed = 10;
-    this.acceleration = 2;
+    this.max_speed = 20;
+    this.acceleration = 3;
   }
   return Character;
 })();

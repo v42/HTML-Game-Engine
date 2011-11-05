@@ -14,6 +14,7 @@ class Engine
 		@CANVAS.width = 640
 		@CANVAS.height = 480
 		@ctx = @CANVAS.getContext '2d'
+		@ctx.mozImageSmoothingEnabled = false
 		
 		#game state
 		@STATE = 
@@ -84,10 +85,10 @@ class Engine
 		document.onkeyup = @key_up
 		return
 		
-	key_down:=>
+	key_down:(event)=>
 		@KEY_PRESSED[event.keyCode] = true
 		
-	key_up:=>
+	key_up:(event)=>
 		@KEY_PRESSED[event.keyCode] = false
 		@KEYS[event.keyCode] false if @KEYS[event.keyCode]?
 		
@@ -284,8 +285,8 @@ class Engine.Character extends Engine.GameEntity
 		@attrition = 0.8
 		@gravity = 1
 		@jump_limit = 10
-		@max_speed = 10
-		@acceleration = 2
+		@max_speed = 20
+		@acceleration = 3
 
 class Engine.Level extends Engine.GameEntity
 	constructor:->
