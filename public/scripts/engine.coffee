@@ -15,6 +15,7 @@ class Engine
 		@CANVAS.height = 480
 		@ctx = @CANVAS.getContext '2d'
 		@ctx.mozImageSmoothingEnabled = false
+		@ctx.font = '12px/1.5 Andale Mono'
 		
 		#game state
 		@STATE = 
@@ -66,8 +67,8 @@ class Engine
 				@next_game_tick += @SKIP_TICKS
 				@loops++
 			
-			interpolation = parseFloat(@tick + @SKIP_TICKS - @next_game_tick)/parseFloat(@SKIP_TICKS)
-			@display_game interpolation
+			@interpolation = parseFloat(@tick + @SKIP_TICKS - @next_game_tick)/parseFloat(@SKIP_TICKS)
+			@display_game()
 			
 			setTimeout @game_loop, 1000 / @UPDATE_RATIO
 			return
@@ -146,12 +147,15 @@ class Engine
 		return
 		
 	update_entities:=>
-		for obj in @BACKGROUNDS
-			obj.update()
-		for obj in @LEVELS
-			obj.update()
-		for obj in @PLAYERS
-			obj.update()
+		for b in @BACKGROUND_ENTITIES
+			b.update()
+		for l in @LEVEL_ENTITIES
+			l.update()
+		for p in @PLAYERS
+			for l in @LEVEL_ENTITIES
+				p.check_colision l
+				p.is_over l
+			p.update()
 		return
 		
 	update_animation:(obj)=>
@@ -172,29 +176,36 @@ class Engine
 	display_game:(interpolation)=>
 		@clear @CLEAR_COLOR if @CLEAR_COLOR?
 		for obj in @BACKGROUND_ENTITIES
-			@update_animation obj
+			#@update_animation obj
 			@draw obj if obj.visible
 		for obj in @LEVEL_ENTITIES
-			@update_animation obj
+			#@update_animation obj
 			@draw obj if obj.visible
 		for obj in @PLAYERS
 			@update_animation obj
 			@draw obj if obj.visible
-		#for obj in @ENTITIES
-		#	@draw obj if obj.visible
-		#	#console.log interpolation
+		if @DEBUG>=1
+			if @fps
+				@ctx.fillStyle = 'white'
+				@ctx.fillText @fps + ' fps', 10, 20
 		@frames++
 		return
 	
 	draw:(obj)=>
 		try
 			if obj.x?
-				@ctx.drawImage obj.image, obj.width*obj.x, obj.height*obj.y, obj.width, obj.height, obj.X - @SCROLL.X, obj.Y - @SCROLL.Y, obj.width*obj.scale, obj.height*obj.scale
+				@ctx.drawImage obj.image, obj.width*obj.x, obj.height*obj.y, obj.width, obj.height, obj.X-obj.w2-@SCROLL.X, obj.Y-obj.h2-@SCROLL.Y, obj.width*obj.scale, obj.height*obj.scale
 			else
-				@ctx.drawImage obj.image, obj.width*obj.frame, 0, obj.width, obj.height, obj.X - @SCROLL.X, obj.Y - @SCROLL.Y, obj.width*obj.scale, obj.height*obj.scale
+				@ctx.drawImage obj.image, obj.width*obj.frame, 0, obj.width, obj.height, obj.X+(obj.speed*@interpolation*obj.interpolate)-obj.w2-@SCROLL.X, obj.Y-obj.h2- @SCROLL.Y, obj.width*obj.scale, obj.height*obj.scale
+			if @DEBUG>=2
+				@ctx.beginPath()
+				@ctx.fillStyle = 'rgba(255, 0, 0, 1)'
+				@ctx.fillRect obj.X-@SCROLL.X, obj.Y-@SCROLL.Y, 1, 1
+				@ctx.closePath()
+				@ctx.fill()
 		catch e
-			#obj.visible = false
-			#console.log e
+			obj.visible = false
+			console.log e
 					
 	load_entities:=>
 		@STATE.loaded = false
@@ -206,6 +217,10 @@ class Engine
 			@load_obj obj, 'player'
 	
 	load_obj:(obj, type)=>
+		obj.h2 = obj.height*obj.scale/2 | 0
+		obj.w2 = obj.width*obj.scale/2 | 0
+		obj.X+=obj.w2
+		obj.Y+=obj.h2
 		if obj.img?
 			obj.image = new Image
 			obj.image.onload = ->
@@ -224,18 +239,21 @@ class Engine
 				for l in h
 					if l != 0
 						o = new Engine.GameEntity
+						o.type = 'level'
 						o.width = obj.width
 						o.height = obj.height
 						o.image = obj.image
 						o.scale = obj.scale
+						o.h2 = obj.h2
+						o.w2 = obj.w2
 						o.frameRate = obj.frameRate
 						o.x = l%tiles_count-1
 						o.y = (l-(l%tiles_count))/tiles_count
 						if o.x == -1
 							o.x = tiles_count-1
 							o.y = o.y-1
-						o.X = x*ws
-						o.Y = y*ws
+						o.X = x*ws+obj.w2
+						o.Y = y*ws+obj.h2
 						@BACKGROUND_ENTITIES.push o if type=='background'
 						@LEVEL_ENTITIES.push o if type=='level'
 					x++
@@ -257,6 +275,7 @@ class Engine.GameEntity
 		@currentFrame = 0
 		@frameRate = 10
 		@state = 'idle'
+		@interpolate = 0
 		@image
 		@visible = true
 		@animations =
@@ -265,7 +284,29 @@ class Engine.GameEntity
 		
 	update:=>
 		
+	get_min:(xy)=>
+		return @X - @width*@scale/2  if xy == 'X'
+		return @Y - @height*@scale/2
+		
+	get_max:(xy)=>
+		return @X + @width*@scale/2  if xy == 'X'
+		return @Y + @height*@scale/2
 	
+	check_colision:(obj)=>
+		return false if @w2+obj.w2 < Math.abs(@X - obj.X)
+		return false if @h2+obj.h2 < Math.abs(@Y - obj.Y)
+		angle = (Math.atan2 obj.Y - @Y, obj.X - @X)*180/Math.PI
+		angle+= 360 if angle < 0
+		
+		if 45 <= angle <= 135 then from = 'bottom' 
+		else if 135 < angle < 225 then from = 'left' 
+		else if 225 <= angle <= 315 then from = 'top' 
+		else from = 'right'
+		
+		@handle_colision obj, from, angle | 0
+	
+	handle_colision:(obj, from, angle)=>
+		
 	move:(X,Y)=>
 		@X = X
 		@Y = Y
@@ -283,10 +324,10 @@ class Engine.Character extends Engine.GameEntity
 		@speed = 0
 		@speed_y = 0
 		@attrition = 0.8
-		@gravity = 1
-		@jump_limit = 10
-		@max_speed = 20
-		@acceleration = 3
+		@gravity = @default_gravity = 9.8/3 
+		@jump_limit = @gravity * 5
+		@max_speed = 10
+		@acceleration = 2
 
 class Engine.Level extends Engine.GameEntity
 	constructor:->
@@ -307,10 +348,14 @@ class Engine.Player extends Engine.Character
 		
 	update:=>
 		super
-		@X += @speed
-		@Y += @speed_y
+		@X += @speed if not @handling_col_x
+		@Y += @speed_y if not @handling_col_y
+		
 		if @jumping
 			@change_animation_state 'jumping'
+			@gravity = @default_gravity
+		else if @falling && @speed_y > 0
+			@change_animation_state 'falling'
 		else if @moving_left && not @moving_right
 			@change_animation_state 'move_left'
 		else if @moving_right && not @moving_left
@@ -318,6 +363,11 @@ class Engine.Player extends Engine.Character
 		else
 			@change_animation_state 'idle'
 			
+		if not @has_floor
+			@falling = true
+			@gravity = @default_gravity
+		else
+			@gravity = 0
 		
 		if not @jumping and @speed != 0
 			@speed = @speed * @attrition
@@ -325,9 +375,58 @@ class Engine.Player extends Engine.Character
 		
 		if @falling
 			@speed_y += @gravity
+		
+		@has_floor = false
 			
 		@X = @X | 0
 		@Y = @Y | 0
+		
+	handle_colision:(obj, from, angle)=>
+		switch obj.type
+			when 'level'
+				console.log 'handling colision on ' + from
+				switch from
+					when 'bottom'
+						return false if @handling_col_y
+						@handling_col_y = true
+						@Y = obj.Y-obj.h2-@h2-1
+						console.log
+						@falling = false
+						@jumping = false
+						@speed_y = 0
+						@gravity = 0
+						@handling_col_y = false
+						@colided_with_level = false
+					when 'top'
+						return false if @handling_col_y
+						@handling_col_y = obj
+						@falling = true
+						@jumping = false
+						@speed_y = 1
+						@gravity = @default_gravity
+						@Y = obj.Y+obj.h2+@h2+1
+						@handling_col_y = false
+						@colided_with_level = false
+					when 'left'
+						return false if @handling_col_x
+						@handling_col_x = obj
+						@speed_x = 0
+						@X=obj.X+obj.w2+@w2+1
+						@handling_col_x = false
+						@colided_with_level = false
+					when 'right'
+						return false if @handling_col_x
+						@handling_col_x = obj
+						@speed_x = 0
+						@X = obj.X-obj.w2-@w2-1
+						@handling_col_x = false
+						@colided_with_level = false
+			
+	is_over:(obj)=>
+		return false if @w2+obj.w2 < Math.abs(@X - obj.X)
+		return false if @h2+obj.h2 < Math.abs(@Y - obj.Y) - 1
+		@jumping = false
+		@has_floor = true
 		
 	move_right:(key)=>
 		if key
@@ -346,9 +445,11 @@ class Engine.Player extends Engine.Character
 			
 	jump:(key)=>
 		if key
+			@gravity = @default_gravity
 			if not @falling and @speed_y > -@jump_limit
 				@speed_y -= @jump_limit/2
 			else
+				@jumping = false
 				@falling = true
 		else
 			@jumping = false

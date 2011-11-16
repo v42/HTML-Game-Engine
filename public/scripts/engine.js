@@ -41,6 +41,7 @@ Engine = (function() {
     this.CANVAS.height = 480;
     this.ctx = this.CANVAS.getContext('2d');
     this.ctx.mozImageSmoothingEnabled = false;
+    this.ctx.font = '12px/1.5 Andale Mono';
     this.STATE = {
       name: 'Game',
       loaded: false
@@ -76,7 +77,6 @@ Engine = (function() {
     return true;
   };
   Engine.prototype.game_loop = function() {
-    var interpolation;
     if (this.is_running) {
       this.tic_tac();
       this.loops = 0;
@@ -85,8 +85,8 @@ Engine = (function() {
         this.next_game_tick += this.SKIP_TICKS;
         this.loops++;
       }
-      interpolation = parseFloat(this.tick + this.SKIP_TICKS - this.next_game_tick) / parseFloat(this.SKIP_TICKS);
-      this.display_game(interpolation);
+      this.interpolation = parseFloat(this.tick + this.SKIP_TICKS - this.next_game_tick) / parseFloat(this.SKIP_TICKS);
+      this.display_game();
       setTimeout(this.game_loop, 1000 / this.UPDATE_RATIO);
     } else {
       console.log("Engine Stopped!");
@@ -168,21 +168,27 @@ Engine = (function() {
   };
   Engine.prototype.state_machine = function() {};
   Engine.prototype.update_entities = function() {
-    var obj, _i, _j, _k, _len, _len2, _len3, _ref, _ref2, _ref3;
-    _ref = this.BACKGROUNDS;
+    var b, l, p, _i, _j, _k, _l, _len, _len2, _len3, _len4, _ref, _ref2, _ref3, _ref4;
+    _ref = this.BACKGROUND_ENTITIES;
     for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-      obj = _ref[_i];
-      obj.update();
+      b = _ref[_i];
+      b.update();
     }
-    _ref2 = this.LEVELS;
+    _ref2 = this.LEVEL_ENTITIES;
     for (_j = 0, _len2 = _ref2.length; _j < _len2; _j++) {
-      obj = _ref2[_j];
-      obj.update();
+      l = _ref2[_j];
+      l.update();
     }
     _ref3 = this.PLAYERS;
     for (_k = 0, _len3 = _ref3.length; _k < _len3; _k++) {
-      obj = _ref3[_k];
-      obj.update();
+      p = _ref3[_k];
+      _ref4 = this.LEVEL_ENTITIES;
+      for (_l = 0, _len4 = _ref4.length; _l < _len4; _l++) {
+        l = _ref4[_l];
+        p.check_colision(l);
+        p.is_over(l);
+      }
+      p.update();
     }
   };
   Engine.prototype.update_animation = function(obj) {
@@ -208,7 +214,6 @@ Engine = (function() {
     _ref = this.BACKGROUND_ENTITIES;
     for (_i = 0, _len = _ref.length; _i < _len; _i++) {
       obj = _ref[_i];
-      this.update_animation(obj);
       if (obj.visible) {
         this.draw(obj);
       }
@@ -216,7 +221,6 @@ Engine = (function() {
     _ref2 = this.LEVEL_ENTITIES;
     for (_j = 0, _len2 = _ref2.length; _j < _len2; _j++) {
       obj = _ref2[_j];
-      this.update_animation(obj);
       if (obj.visible) {
         this.draw(obj);
       }
@@ -229,17 +233,31 @@ Engine = (function() {
         this.draw(obj);
       }
     }
+    if (this.DEBUG >= 1) {
+      if (this.fps) {
+        this.ctx.fillStyle = 'white';
+        this.ctx.fillText(this.fps + ' fps', 10, 20);
+      }
+    }
     this.frames++;
   };
   Engine.prototype.draw = function(obj) {
     try {
       if (obj.x != null) {
-        return this.ctx.drawImage(obj.image, obj.width * obj.x, obj.height * obj.y, obj.width, obj.height, obj.X - this.SCROLL.X, obj.Y - this.SCROLL.Y, obj.width * obj.scale, obj.height * obj.scale);
+        this.ctx.drawImage(obj.image, obj.width * obj.x, obj.height * obj.y, obj.width, obj.height, obj.X - obj.w2 - this.SCROLL.X, obj.Y - obj.h2 - this.SCROLL.Y, obj.width * obj.scale, obj.height * obj.scale);
       } else {
-        return this.ctx.drawImage(obj.image, obj.width * obj.frame, 0, obj.width, obj.height, obj.X - this.SCROLL.X, obj.Y - this.SCROLL.Y, obj.width * obj.scale, obj.height * obj.scale);
+        this.ctx.drawImage(obj.image, obj.width * obj.frame, 0, obj.width, obj.height, obj.X + (obj.speed * this.interpolation * obj.interpolate) - obj.w2 - this.SCROLL.X, obj.Y - obj.h2 - this.SCROLL.Y, obj.width * obj.scale, obj.height * obj.scale);
+      }
+      if (this.DEBUG >= 2) {
+        this.ctx.beginPath();
+        this.ctx.fillStyle = 'rgba(255, 0, 0, 1)';
+        this.ctx.fillRect(obj.X - this.SCROLL.X, obj.Y - this.SCROLL.Y, 1, 1);
+        this.ctx.closePath();
+        return this.ctx.fill();
       }
     } catch (e) {
-
+      obj.visible = false;
+      return console.log(e);
     }
   };
   Engine.prototype.load_entities = function() {
@@ -265,6 +283,10 @@ Engine = (function() {
   };
   Engine.prototype.load_obj = function(obj, type) {
     var a, h, k, l, o, tiles_count, ws, x, y, _i, _j, _len, _len2, _ref, _ref2;
+    obj.h2 = obj.height * obj.scale / 2 | 0;
+    obj.w2 = obj.width * obj.scale / 2 | 0;
+    obj.X += obj.w2;
+    obj.Y += obj.h2;
     if (obj.img != null) {
       obj.image = new Image;
       obj.image.onload = function() {
@@ -292,10 +314,13 @@ Engine = (function() {
           l = h[_j];
           if (l !== 0) {
             o = new Engine.GameEntity;
+            o.type = 'level';
             o.width = obj.width;
             o.height = obj.height;
             o.image = obj.image;
             o.scale = obj.scale;
+            o.h2 = obj.h2;
+            o.w2 = obj.w2;
             o.frameRate = obj.frameRate;
             o.x = l % tiles_count - 1;
             o.y = (l - (l % tiles_count)) / tiles_count;
@@ -303,8 +328,8 @@ Engine = (function() {
               o.x = tiles_count - 1;
               o.y = o.y - 1;
             }
-            o.X = x * ws;
-            o.Y = y * ws;
+            o.X = x * ws + obj.w2;
+            o.Y = y * ws + obj.h2;
             if (type === 'background') {
               this.BACKGROUND_ENTITIES.push(o);
             }
@@ -331,6 +356,10 @@ Engine.GameEntity = (function() {
   function GameEntity() {
     this.change_animation_state = __bind(this.change_animation_state, this);
     this.move = __bind(this.move, this);
+    this.handle_colision = __bind(this.handle_colision, this);
+    this.check_colision = __bind(this.check_colision, this);
+    this.get_max = __bind(this.get_max, this);
+    this.get_min = __bind(this.get_min, this);
     this.update = __bind(this.update, this);    this.id;
     this.X;
     this.Y;
@@ -342,6 +371,7 @@ Engine.GameEntity = (function() {
     this.currentFrame = 0;
     this.frameRate = 10;
     this.state = 'idle';
+    this.interpolate = 0;
     this.image;
     this.visible = true;
     this.animations = {
@@ -351,6 +381,42 @@ Engine.GameEntity = (function() {
     };
   }
   GameEntity.prototype.update = function() {};
+  GameEntity.prototype.get_min = function(xy) {
+    if (xy === 'X') {
+      return this.X - this.width * this.scale / 2;
+    }
+    return this.Y - this.height * this.scale / 2;
+  };
+  GameEntity.prototype.get_max = function(xy) {
+    if (xy === 'X') {
+      return this.X + this.width * this.scale / 2;
+    }
+    return this.Y + this.height * this.scale / 2;
+  };
+  GameEntity.prototype.check_colision = function(obj) {
+    var angle, from;
+    if (this.w2 + obj.w2 < Math.abs(this.X - obj.X)) {
+      return false;
+    }
+    if (this.h2 + obj.h2 < Math.abs(this.Y - obj.Y)) {
+      return false;
+    }
+    angle = (Math.atan2(obj.Y - this.Y, obj.X - this.X)) * 180 / Math.PI;
+    if (angle < 0) {
+      angle += 360;
+    }
+    if ((45 <= angle && angle <= 135)) {
+      from = 'bottom';
+    } else if ((135 < angle && angle < 225)) {
+      from = 'left';
+    } else if ((225 <= angle && angle <= 315)) {
+      from = 'top';
+    } else {
+      from = 'right';
+    }
+    return this.handle_colision(obj, from, angle | 0);
+  };
+  GameEntity.prototype.handle_colision = function(obj, from, angle) {};
   GameEntity.prototype.move = function(X, Y) {
     this.X = X;
     return this.Y = Y;
@@ -373,10 +439,10 @@ Engine.Character = (function() {
     this.speed = 0;
     this.speed_y = 0;
     this.attrition = 0.8;
-    this.gravity = 1;
-    this.jump_limit = 10;
-    this.max_speed = 20;
-    this.acceleration = 3;
+    this.gravity = this.default_gravity = 9.8 / 3;
+    this.jump_limit = this.gravity * 5;
+    this.max_speed = 10;
+    this.acceleration = 2;
   }
   return Character;
 })();
@@ -407,21 +473,36 @@ Engine.Player = (function() {
     this.jump = __bind(this.jump, this);
     this.move_left = __bind(this.move_left, this);
     this.move_right = __bind(this.move_right, this);
+    this.is_over = __bind(this.is_over, this);
+    this.handle_colision = __bind(this.handle_colision, this);
     this.update = __bind(this.update, this);    Player.__super__.constructor.apply(this, arguments);
   }
   Player.prototype.update = function() {
     var _ref;
     Player.__super__.update.apply(this, arguments);
-    this.X += this.speed;
-    this.Y += this.speed_y;
+    if (!this.handling_col_x) {
+      this.X += this.speed;
+    }
+    if (!this.handling_col_y) {
+      this.Y += this.speed_y;
+    }
     if (this.jumping) {
       this.change_animation_state('jumping');
+      this.gravity = this.default_gravity;
+    } else if (this.falling && this.speed_y > 0) {
+      this.change_animation_state('falling');
     } else if (this.moving_left && !this.moving_right) {
       this.change_animation_state('move_left');
     } else if (this.moving_right && !this.moving_left) {
       this.change_animation_state('move_right');
     } else {
       this.change_animation_state('idle');
+    }
+    if (!this.has_floor) {
+      this.falling = true;
+      this.gravity = this.default_gravity;
+    } else {
+      this.gravity = 0;
     }
     if (!this.jumping && this.speed !== 0) {
       this.speed = this.speed * this.attrition;
@@ -432,8 +513,70 @@ Engine.Player = (function() {
     if (this.falling) {
       this.speed_y += this.gravity;
     }
+    this.has_floor = false;
     this.X = this.X | 0;
     return this.Y = this.Y | 0;
+  };
+  Player.prototype.handle_colision = function(obj, from, angle) {
+    switch (obj.type) {
+      case 'level':
+        console.log('handling colision on ' + from);
+        switch (from) {
+          case 'bottom':
+            if (this.handling_col_y) {
+              return false;
+            }
+            this.handling_col_y = true;
+            this.Y = obj.Y - obj.h2 - this.h2 - 1;
+            console.log;
+            this.falling = false;
+            this.jumping = false;
+            this.speed_y = 0;
+            this.gravity = 0;
+            this.handling_col_y = false;
+            return this.colided_with_level = false;
+          case 'top':
+            if (this.handling_col_y) {
+              return false;
+            }
+            this.handling_col_y = obj;
+            this.falling = true;
+            this.jumping = false;
+            this.speed_y = 1;
+            this.gravity = this.default_gravity;
+            this.Y = obj.Y + obj.h2 + this.h2 + 1;
+            this.handling_col_y = false;
+            return this.colided_with_level = false;
+          case 'left':
+            if (this.handling_col_x) {
+              return false;
+            }
+            this.handling_col_x = obj;
+            this.speed_x = 0;
+            this.X = obj.X + obj.w2 + this.w2 + 1;
+            this.handling_col_x = false;
+            return this.colided_with_level = false;
+          case 'right':
+            if (this.handling_col_x) {
+              return false;
+            }
+            this.handling_col_x = obj;
+            this.speed_x = 0;
+            this.X = obj.X - obj.w2 - this.w2 - 1;
+            this.handling_col_x = false;
+            return this.colided_with_level = false;
+        }
+    }
+  };
+  Player.prototype.is_over = function(obj) {
+    if (this.w2 + obj.w2 < Math.abs(this.X - obj.X)) {
+      return false;
+    }
+    if (this.h2 + obj.h2 < Math.abs(this.Y - obj.Y) - 1) {
+      return false;
+    }
+    this.jumping = false;
+    return this.has_floor = true;
   };
   Player.prototype.move_right = function(key) {
     if (key) {
@@ -457,9 +600,11 @@ Engine.Player = (function() {
   };
   Player.prototype.jump = function(key) {
     if (key) {
+      this.gravity = this.default_gravity;
       if (!this.falling && this.speed_y > -this.jump_limit) {
         return this.speed_y -= this.jump_limit / 2;
       } else {
+        this.jumping = false;
         return this.falling = true;
       }
     } else {
