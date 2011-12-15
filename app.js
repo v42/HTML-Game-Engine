@@ -80,11 +80,16 @@ app.configure('production', function() {
   });
 });
 app.get('/', function(req, res) {
-  var _ref;
-  if ((_ref = req.session.auth) != null ? _ref.loggedIn : void 0) {
-    return res.redirect('/home');
-  }
   return res.render('index');
+});
+app.get('/game2', function(req, res) {
+  return res.render('game2');
+});
+app.get('/game3', function(req, res) {
+  return res.render('game3');
+});
+app.get('/game4', function(req, res) {
+  return res.render('game4');
 });
 app.get('*', function(req, res) {
   return res.render('404', {

@@ -27,6 +27,7 @@ Engine = (function() {
     this.key_up = __bind(this.key_up, this);
     this.key_down = __bind(this.key_down, this);
     this.bind_keys = __bind(this.bind_keys, this);
+    this.play_sound = __bind(this.play_sound, this);
     this.stop = __bind(this.stop, this);
     this.game_loop = __bind(this.game_loop, this);
     this.start = __bind(this.start, this);    this.TICKS_PER_SECOND = 25;
@@ -51,7 +52,8 @@ Engine = (function() {
     this.KEYS = {};
     this.KEY_PRESSED = {};
     this.imagesPath = "/assets/images/";
-    this.soundPath = "/assets/sound/";
+    this.soundsPath = "/assets/sound/";
+    this.SOUNDS = {};
     this.WORLD = {
       width: 0,
       height: 0
@@ -63,27 +65,31 @@ Engine = (function() {
   }
   Engine.prototype.start = function() {
     var now;
-    this.loops = 0;
-    this.is_running = true;
-    console.log("Engine Started!");
-    this.load_entities();
-    this.bind_keys();
-    now = new Date();
-    this.first_tick = now.getTime();
-    this.tic_tac();
-    this.next_game_tick = this.tick;
-    this.game_loop();
-    this.calculate_fps();
-    return true;
+    if (typeof smLoaded !== "undefined" && smLoaded !== null) {
+      this.loops = 0;
+      this.is_running = true;
+      console.log("Engine Started!");
+      this.load_entities();
+      this.bind_keys();
+      now = new Date();
+      this.first_tick = now.getTime();
+      this.tic_tac();
+      this.next_game_tick = this.tick;
+      this.game_loop();
+      this.calculate_fps();
+      return true;
+    } else {
+      this.clear('#000');
+      setTimeout(this.start, 20);
+      return false;
+    }
   };
   Engine.prototype.game_loop = function() {
     if (this.is_running) {
       this.tic_tac();
-      this.loops = 0;
-      if (this.tick > this.next_game_tick && this.loops < this.MAX_FRAMESKIP) {
+      if (this.tick > this.next_game_tick) {
         this.update_game();
         this.next_game_tick += this.SKIP_TICKS;
-        this.loops++;
       }
       this.interpolation = parseFloat(this.tick + this.SKIP_TICKS - this.next_game_tick) / parseFloat(this.SKIP_TICKS);
       this.display_game();
@@ -96,6 +102,9 @@ Engine = (function() {
     console.log("Engine Stopping...");
     this.is_running = false;
     return !this.is_running;
+  };
+  Engine.prototype.play_sound = function(filename) {
+    return soundManager.play(filename, this.soundsPath + filename);
   };
   Engine.prototype.bind_keys = function() {
     document.onkeydown = this.key_down;
@@ -193,7 +202,7 @@ Engine = (function() {
   };
   Engine.prototype.update_animation = function(obj) {
     if (obj.frameCount > this.MAX_FPS / obj.frameRate) {
-      obj.currentFrame = obj.currentFrame < obj.animations[obj.state].frames.length - 1 ? obj.currentFrame + 1 : 0;
+      obj.currentFrame = obj.currentFrame < obj.animations[obj.state].frames.length - 1 ? obj.currentFrame + 1 : obj.animations[obj.state].looping ? 0 : obj.currentFrame;
       obj.frameCount = 0;
     }
     obj.frame = obj.animations[obj.state].frames[obj.currentFrame];
@@ -282,7 +291,7 @@ Engine = (function() {
     return _results;
   };
   Engine.prototype.load_obj = function(obj, type) {
-    var a, h, k, l, o, tiles_count, ws, x, y, _i, _j, _len, _len2, _ref, _ref2;
+    var a, h, k, l, o, s, tiles_count, ws, x, y, _i, _j, _len, _len2, _ref, _ref2, _ref3;
     obj.h2 = obj.height * obj.scale / 2 | 0;
     obj.w2 = obj.width * obj.scale / 2 | 0;
     obj.X += obj.w2;
@@ -294,10 +303,22 @@ Engine = (function() {
       };
       obj.image.src = this.imagesPath + obj.img;
     }
-    if (type === 'player' && (obj.keys != null)) {
-      _ref = obj.keys;
+    if (obj.sounds != null) {
+      _ref = obj.sounds;
       for (k in _ref) {
-        a = _ref[k];
+        s = _ref[k];
+        obj.sound[k] = soundManager.createSound({
+          id: k,
+          autoload: true,
+          multiShot: true,
+          url: this.soundsPath + s
+        });
+      }
+    }
+    if (type === 'player' && (obj.keys != null)) {
+      _ref2 = obj.keys;
+      for (k in _ref2) {
+        a = _ref2[k];
         this.KEYS[k] = obj[a];
         this.KEY_PRESSED[k] = false;
       }
@@ -307,9 +328,9 @@ Engine = (function() {
       y = 0;
       ws = obj.width * obj.scale;
       tiles_count = obj.image_width / obj.width;
-      _ref2 = obj.tilemap;
-      for (_i = 0, _len = _ref2.length; _i < _len; _i++) {
-        h = _ref2[_i];
+      _ref3 = obj.tilemap;
+      for (_i = 0, _len = _ref3.length; _i < _len; _i++) {
+        h = _ref3[_i];
         for (_j = 0, _len2 = h.length; _j < _len2; _j++) {
           l = h[_j];
           if (l !== 0) {
@@ -443,6 +464,8 @@ Engine.Character = (function() {
     this.jump_limit = this.gravity * 5;
     this.max_speed = 10;
     this.acceleration = 2;
+    this.looking_up = false;
+    this.sound = {};
   }
   return Character;
 })();
@@ -468,7 +491,7 @@ Engine.Background = (function() {
 Engine.Player = (function() {
   __extends(Player, Engine.Character);
   function Player() {
-    this.look_up = __bind(this.look_up, this);
+    this.grab = __bind(this.grab, this);
     this.crouch = __bind(this.crouch, this);
     this.jump = __bind(this.jump, this);
     this.move_left = __bind(this.move_left, this);
@@ -495,6 +518,10 @@ Engine.Player = (function() {
       this.change_animation_state('move_left');
     } else if (this.moving_right && !this.moving_left) {
       this.change_animation_state('move_right');
+    } else if (this.grabbing) {
+      this.change_animation_state('grab');
+    } else if (this.crouching) {
+      this.change_animation_state('crouch');
     } else {
       this.change_animation_state('idle');
     }
@@ -520,21 +547,18 @@ Engine.Player = (function() {
   Player.prototype.handle_colision = function(obj, from, angle) {
     switch (obj.type) {
       case 'level':
-        console.log('handling colision on ' + from);
         switch (from) {
           case 'bottom':
             if (this.handling_col_y) {
               return false;
             }
-            this.handling_col_y = true;
+            this.handling_col_y = obj;
             this.Y = obj.Y - obj.h2 - this.h2 - 1;
-            console.log;
             this.falling = false;
             this.jumping = false;
             this.speed_y = 0;
             this.gravity = 0;
-            this.handling_col_y = false;
-            return this.colided_with_level = false;
+            return this.handling_col_y = false;
           case 'top':
             if (this.handling_col_y) {
               return false;
@@ -545,8 +569,7 @@ Engine.Player = (function() {
             this.speed_y = 1;
             this.gravity = this.default_gravity;
             this.Y = obj.Y + obj.h2 + this.h2 + 1;
-            this.handling_col_y = false;
-            return this.colided_with_level = false;
+            return this.handling_col_y = false;
           case 'left':
             if (this.handling_col_x) {
               return false;
@@ -554,8 +577,7 @@ Engine.Player = (function() {
             this.handling_col_x = obj;
             this.speed_x = 0;
             this.X = obj.X + obj.w2 + this.w2 + 1;
-            this.handling_col_x = false;
-            return this.colided_with_level = false;
+            return this.handling_col_x = false;
           case 'right':
             if (this.handling_col_x) {
               return false;
@@ -563,8 +585,7 @@ Engine.Player = (function() {
             this.handling_col_x = obj;
             this.speed_x = 0;
             this.X = obj.X - obj.w2 - this.w2 - 1;
-            this.handling_col_x = false;
-            return this.colided_with_level = false;
+            return this.handling_col_x = false;
         }
     }
   };
@@ -575,7 +596,11 @@ Engine.Player = (function() {
     if (this.h2 + obj.h2 < Math.abs(this.Y - obj.Y) - 1) {
       return false;
     }
+    if (this.Y + this.h2 - 1 > obj.Y - obj.h2) {
+      return false;
+    }
     this.jumping = false;
+    this.falling = false;
     return this.has_floor = true;
   };
   Player.prototype.move_right = function(key) {
@@ -602,6 +627,9 @@ Engine.Player = (function() {
     if (key) {
       this.gravity = this.default_gravity;
       if (!this.falling && this.speed_y > -this.jump_limit) {
+        if (this.sound['jump'] != null) {
+          this.sound['jump'].play();
+        }
         return this.speed_y -= this.jump_limit / 2;
       } else {
         this.jumping = false;
@@ -615,16 +643,16 @@ Engine.Player = (function() {
   };
   Player.prototype.crouch = function(key) {
     if (key && !this.jumping && !this.falling && !this.moving_left && !this.moving_right) {
-      return this.is_crouching = true;
+      return this.crouching = true;
     } else {
-      return this.is_crouching = false;
+      return this.crouching = false;
     }
   };
-  Player.prototype.look_up = function() {
+  Player.prototype.grab = function(key) {
     if (key && !this.jumping && !this.falling) {
-      return this.is_looking_up = true;
+      return this.grabbing = true;
     } else {
-      return this.is_looking_up = false;
+      return this.grabbing = false;
     }
   };
   return Player;

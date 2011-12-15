@@ -11,6 +11,20 @@
 	<title>My Game Engine</title>
 	
 	<script>document.getElementsByTagName('html')[0].className += ' js';</script>
+	<!--script src="http://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js"></script-->
+	<script>!window.jQuery && document.write(unescape('%3Cscript src="scripts/jquery-1.6.2.min.js"%3E%3C/script%3E'))</script>
+	<script src="/scripts/soundmanager2-nodebug-jsmin.js"></script>
+	<script>
+		soundManager.url = '/swf/';
+		soundManager.flashVersion = 9; // optional: shiny features (default = 8)
+		soundManager.useFlashBlock = false; // optionally, enable when you're ready to dive in
+		soundManager.onready(function() {
+			smLoaded = true;
+  			console.log("Sound Manager ready! :)");
+		});
+	</script>
+	<script src="/scripts/base.js"></script>
+	<script src="/scripts/engine.js"></script>
 	<link rel="stylesheet" href="/styles/base.css" />
 
 </head>
@@ -29,12 +43,6 @@
 	<!--footer id="footer" role="contentinfo">
 		<small><a href="http://www.v42.com.br" target="_blank">by v42</a></small>
 	</footer-->
-
-	<!--script src="http://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js"></script-->
-	<script>!window.jQuery && document.write(unescape('%3Cscript src="scripts/jquery-1.6.2.min.js"%3E%3C/script%3E'))</script>
-	<script src="/scripts/base.js"></script>
-	<script src="/scripts/engine.js"></script>
-	<script src="/scripts/game.js"></script>
 </div>
 </body>
 </html>

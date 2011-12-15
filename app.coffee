@@ -75,11 +75,16 @@ app.configure 'production', ->
 #### Index
 
 app.get '/', (req, res) ->
-	
-	if req.session.auth?.loggedIn
-		return res.redirect '/home'
 	res.render 'index'
+	
+app.get '/game2', (req,res) ->
+	res.render 'game2'
 
+app.get '/game3', (req,res) ->
+	res.render 'game3'
+
+app.get '/game4', (req,res) ->
+	res.render 'game4'
 
 # Route/file not found
 # **Always keep this as the last route**

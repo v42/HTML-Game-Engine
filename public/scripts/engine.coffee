@@ -30,7 +30,10 @@ class Engine
 		
 		#assets
 		@imagesPath = "/assets/images/"
-		@soundPath = "/assets/sound/"
+		@soundsPath = "/assets/sound/"
+		
+		#sounds
+		@SOUNDS = {}
 		
 		#world settings
 		@WORLD = 
@@ -42,18 +45,23 @@ class Engine
 			Y:0
 		
 	start:=>
-		@loops = 0
-		@is_running = true
-		console.log "Engine Started!"
-		@load_entities()
-		@bind_keys()
-		now = new Date()
-		@first_tick = now.getTime()
-		@tic_tac()
-		@next_game_tick = @tick
-		@game_loop()
-		@calculate_fps()
-		return true
+		if smLoaded?
+			@loops = 0
+			@is_running = true
+			console.log "Engine Started!"
+			@load_entities()
+			@bind_keys()
+			now = new Date()
+			@first_tick = now.getTime()
+			@tic_tac()
+			@next_game_tick = @tick
+			@game_loop()
+			@calculate_fps()
+			return true
+		else
+			@clear '#000'
+			setTimeout @start, 20
+			return false
 	
 	# Game Loop implement based on deWiTTERS'
 	# Constant Game Speed independent of Variable FPS
@@ -61,11 +69,9 @@ class Engine
 	game_loop:=>
 		if @is_running
 			@tic_tac()
-			@loops = 0
-			if @tick > @next_game_tick && @loops < @MAX_FRAMESKIP
+			if @tick > @next_game_tick
 				@update_game()
 				@next_game_tick += @SKIP_TICKS
-				@loops++
 			
 			@interpolation = parseFloat(@tick + @SKIP_TICKS - @next_game_tick)/parseFloat(@SKIP_TICKS)
 			@display_game()
@@ -80,6 +86,9 @@ class Engine
 		console.log "Engine Stopping..."
 		@is_running = false
 		return !@is_running
+		
+	play_sound:(filename)=>
+		soundManager.play filename, @soundsPath + filename
 		
 	bind_keys:=>
 		document.onkeydown = @key_down
@@ -160,7 +169,7 @@ class Engine
 		
 	update_animation:(obj)=>
 		if obj.frameCount > @MAX_FPS/obj.frameRate
-			obj.currentFrame = if obj.currentFrame < obj.animations[obj.state].frames.length-1 then obj.currentFrame+1 else 0
+			obj.currentFrame = if obj.currentFrame < obj.animations[obj.state].frames.length-1 then obj.currentFrame+1 else if obj.animations[obj.state].looping then 0 else obj.currentFrame
 			obj.frameCount = 0
 		obj.frame = obj.animations[obj.state].frames[obj.currentFrame]
 		obj.frameCount++
@@ -226,6 +235,13 @@ class Engine
 			obj.image.onload = ->
 				obj.image.loaded = true
 			obj.image.src = @imagesPath + obj.img
+		if obj.sounds?
+			for k,s of obj.sounds
+					obj.sound[k] = soundManager.createSound
+						id: k
+						autoload: true
+						multiShot: true
+						url: @soundsPath + s
 		if type=='player' and obj.keys?
 			for k, a of obj.keys
 				@KEYS[k] = obj[a]
@@ -328,6 +344,8 @@ class Engine.Character extends Engine.GameEntity
 		@jump_limit = @gravity * 5
 		@max_speed = 10
 		@acceleration = 2
+		@looking_up = false
+		@sound = {}
 
 class Engine.Level extends Engine.GameEntity
 	constructor:->
@@ -360,6 +378,10 @@ class Engine.Player extends Engine.Character
 			@change_animation_state 'move_left'
 		else if @moving_right && not @moving_left
 			@change_animation_state 'move_right'
+		else if @grabbing
+			@change_animation_state 'grab'
+		else if @crouching
+			@change_animation_state 'crouch'
 		else
 			@change_animation_state 'idle'
 			
@@ -384,19 +406,17 @@ class Engine.Player extends Engine.Character
 	handle_colision:(obj, from, angle)=>
 		switch obj.type
 			when 'level'
-				console.log 'handling colision on ' + from
+				#console.log 'handling colision on ' + from
 				switch from
 					when 'bottom'
 						return false if @handling_col_y
-						@handling_col_y = true
+						@handling_col_y = obj
 						@Y = obj.Y-obj.h2-@h2-1
-						console.log
 						@falling = false
 						@jumping = false
 						@speed_y = 0
 						@gravity = 0
 						@handling_col_y = false
-						@colided_with_level = false
 					when 'top'
 						return false if @handling_col_y
 						@handling_col_y = obj
@@ -406,26 +426,25 @@ class Engine.Player extends Engine.Character
 						@gravity = @default_gravity
 						@Y = obj.Y+obj.h2+@h2+1
 						@handling_col_y = false
-						@colided_with_level = false
 					when 'left'
 						return false if @handling_col_x
 						@handling_col_x = obj
 						@speed_x = 0
 						@X=obj.X+obj.w2+@w2+1
 						@handling_col_x = false
-						@colided_with_level = false
 					when 'right'
 						return false if @handling_col_x
 						@handling_col_x = obj
 						@speed_x = 0
 						@X = obj.X-obj.w2-@w2-1
 						@handling_col_x = false
-						@colided_with_level = false
 			
 	is_over:(obj)=>
 		return false if @w2+obj.w2 < Math.abs(@X - obj.X)
-		return false if @h2+obj.h2 < Math.abs(@Y - obj.Y) - 1
+		return false if @h2+obj.h2 < Math.abs(@Y - obj.Y)-1
+		return false if @Y+@h2-1 > obj.Y-obj.h2
 		@jumping = false
+		@falling = false
 		@has_floor = true
 		
 	move_right:(key)=>
@@ -447,6 +466,7 @@ class Engine.Player extends Engine.Character
 		if key
 			@gravity = @default_gravity
 			if not @falling and @speed_y > -@jump_limit
+				@sound['jump'].play() if @sound['jump']?
 				@speed_y -= @jump_limit/2
 			else
 				@jumping = false
@@ -458,15 +478,15 @@ class Engine.Player extends Engine.Character
 			
 	crouch:(key)=>
 		if key && not @jumping && not @falling && not @moving_left && not @moving_right
-			@is_crouching = true 
+			@crouching = true 
 		else
-			@is_crouching = false
+			@crouching = false
 	
-	look_up:=>
+	grab:(key)=>
 		if key && not @jumping && not @falling
-			@is_looking_up = true 
+			@grabbing = true 
 		else
-			@is_looking_up = false
+			@grabbing = false
 class Engine.NPC extends Engine.Character
 	constructor:->
 		super
