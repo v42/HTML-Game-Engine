@@ -1,8 +1,8 @@
 #### Dependencies
 express       = require 'express'
-mongoose      = require 'mongoose'
-MongoStore    = require 'connect-mongo'
-less          = require 'less'
+##mongoose      = require 'mongoose'
+##MongoStore    = require 'connect-mongo'
+##less          = require 'less'
 jqtpl         = require 'jqtpl'
 #sugar         = require 'sugar'
 
@@ -18,9 +18,9 @@ app.configure ->
 	app.use express.cookieParser()
 	app.use express.session
 		secret: 'mahsecret'
-		store: new MongoStore
+	###	store: new MongoStore
 			db: 'engine'
-			collection: 'sessions'
+			collection: 'sessions'###
 	
 	layoutBlock = ->
 		a = []

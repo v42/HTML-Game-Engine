@@ -93,7 +93,7 @@ class Engine
 	bind_keys:=>
 		document.onkeydown = @key_down
 		document.onkeyup = @key_up
-		return
+		ret
 		
 	key_down:(event)=>
 		@KEY_PRESSED[event.keyCode] = true
