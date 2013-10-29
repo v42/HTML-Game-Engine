@@ -1,0 +1,10 @@
+{
+  "name": "HTML Game Engine",
+  "description": "HTML Game Engine",
+  "version": "0.1.0",
+  "author": "Vitor Carlos <vitor@v42.com.br>",
+  "devDependencies": {
+    "express": "2.4.6",
+    "jqtpl": ""
+  }
+}
