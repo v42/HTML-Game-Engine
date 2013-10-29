@@ -23,8 +23,6 @@ This is no longer mantained, but feel free to clone, read about and ask me anyth
 
 - Use Firefox! It uses `mozImageSmoothingEnabled = false`, so pixels aren't smoothed!
 
-
-
 ## LICENSE
 This software is under BeerCoffeWare License (Revision 42):
 Use this as you want, if we meet someday and feels like this worth it, you can buy me a coffee or a beer! :)
