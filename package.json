@@ -5,7 +5,7 @@
   "author": "Vitor Carlos <vitor@v42.com.br>",
   "devDependencies": {
     "express": "2.4.6",
-    "jqtpl": "",
+    "jqtpl": "1.0.5",
     "coffee-script": "~1.6.3"
   }
 }
