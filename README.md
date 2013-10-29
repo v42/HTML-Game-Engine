@@ -19,7 +19,7 @@ This is no longer mantained, but feel free to clone, read about and ask me anyth
 
 ## Recomendations
 
-- Use Firefox to run it! I am using really really tiny sprites here to the demos. Firefox has `mozImageSmoothingEnabled = false` option that doesn't try to smooth the canvas, so you will get sharp pixels only at Firefox.
+- Use Firefox to run it! I am using really really tiny sprites here for the demos. Firefox has `mozImageSmoothingEnabled = false` option that doesn't try to smooth the canvas, so you will get sharp pixels only at Firefox.
 - This engine uses the Game Loop without `requestAnimationFrame`, which I didn't know in that time. If you are going to implement a game loop I strongly suggest you use it. You can calculate your `deltaTime` by using JavaScript native's `Date().getTime()` and subtract it by an old time.
 - Canvas is trying to draw things that are not in the visible area. If you are going to use it for real, fix it.
 - Sprites have no function to flip themselves while walking. It doesn't look like, because they are symetric.
