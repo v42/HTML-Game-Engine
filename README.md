@@ -3,7 +3,7 @@ HTML GAME ENGINE
 
 This is a concept for an engine in HTML using canvas, inspired on Jason Gregory's Engine Architecture, used as my graduation's project.
 
-This is entirely made in CoffeeScript, and uses game loop concepts without requestAnimationFrame, which I didn't know in that time.
+This is entirely made in CoffeeScript, and uses game loop concepts without `requestAnimationFrame`, which I happen to didn't know in that time.
 
 This is no longer mantained, but feel free to clone, read about and ask me anything you need. I am no longer updating it since the idea here is to keep it as it was on the project's delivery date.
 
@@ -15,9 +15,9 @@ This is no longer mantained, but feel free to clone, read about and ask me anyth
 
 ## Game Variations
 
-http://localhost:4242/game2
-http://localhost:4242/game3
-http://localhost:4242/game4
+- http://localhost:4242/game2
+- http://localhost:4242/game3
+- http://localhost:4242/game4
 
 ## Recomendations
 
