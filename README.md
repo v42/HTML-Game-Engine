@@ -19,6 +19,11 @@ http://localhost:4242/game2
 http://localhost:4242/game3
 http://localhost:4242/game4
 
+## Recomendations
+
+- Use Firefox! It uses `mozImageSmoothingEnabled = false`, so pixels aren't smoothed!
+
+
 
 ## LICENSE
 This software is under BeerCoffeWare License (Revision 42):
