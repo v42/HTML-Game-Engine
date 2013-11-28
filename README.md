@@ -13,9 +13,9 @@ This is no longer mantained, but feel free to clone, read about and ask me anyth
 
 ## Game Variations
 
+- http://localhost:4242/
 - http://localhost:4242/game2
 - http://localhost:4242/game3
-- http://localhost:4242/game4
 
 ## Recomendations
 
