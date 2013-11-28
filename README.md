@@ -24,6 +24,6 @@ This is no longer mantained, but feel free to clone, read about and ask me anyth
 - Canvas is trying to draw things that are not in the visible area. If you are going to use it for real, fix it.
 - Sprites have no function to flip themselves while walking. It doesn't look like, because they are symetric.
 
-## LICENSE
+## License
 This software is under BeerCoffeWare License (Revision 42):
 Use this as you want, if we meet someday and feels like this worth it, you can buy me a coffee or a beer! :)
